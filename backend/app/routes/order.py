@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from app.db.session import get_db
 from app.models import Order, OrderStatus, Crop
-from app.schemas.schemas_order import OrderCreate, OrderOut
+from app.schemas.order import OrderCreate, OrderOut
 from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/orders", tags=["orders"])

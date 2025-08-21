@@ -1,16 +1,26 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
 import logging
+
+import os
 
 from app.core.config import settings
 from app.core.logging_conf import configure_logging
-from app.api.routes.auth import router as auth_router
+from app.routes.auth import router as auth_router
+from app.routes.crops import router as crops_router
+from app.routes.media import router as media_router
+
 from app.api.deps import get_current_user
 
 configure_logging()
 log = logging.getLogger("mahaseel")
 
 app = FastAPI(title=settings.app_name, version="0.1.0", docs_url="/docs", redoc_url="/redoc")
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "../uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +40,9 @@ def healthz():
     return {"status": "ok", "env": settings.env}
 
 app.include_router(auth_router)
+app.include_router(crops_router)
+app.include_router(media_router)
+
 
 @app.get("/me", tags=["auth"])
 def me(user = Depends(get_current_user)):

@@ -1,8 +1,9 @@
 # app/routers/media.py
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.schemas.schemas_media import MediaOut
+from app.schemas.media import MediaOut
 from app.services.media_service import save_image_to_disk, create_media_record, set_main_for_crop
 from app.models.crop import Crop
 import os
@@ -65,24 +66,64 @@ async def upload_media(
         crop_id=media.crop_id,
     )
 
-@router.post("/{media_id}/make-main", response_model=MediaOut)
+@router.post("/{media_id}/make-main")
 def make_main(media_id: int, db: Session = Depends(get_db)):
     from app.models.media import Media
-
-    media = db.query(Media).get(media_id)
-    if not media:
-        raise HTTPException(404, "Media not found")
-
-    set_main_for_crop(db, media)
+    m = db.query(Media).get(media_id)
+    if not m:
+        raise HTTPException(404, "Not found")
+    # reuse the helper that unsets the previous main
+    from app.services.media_service import set_main_for_crop
+    set_main_for_crop(db, m)
     db.commit()
-    db.refresh(media)
+    db.refresh(m)
+    return {"id": m.id, "url": f"/static/{m.path}", "is_main": m.is_main}
 
-    return MediaOut(
-        id=media.id,
-        url=f"/static/{media.path}",
-        is_main=media.is_main,
-        width=media.width,
-        height=media.height,
-        crop_id=media.crop_id,
+
+
+@router.get("/by-crop/{crop_id}")
+def list_media_for_crop(
+    crop_id: int,
+    db: Session = Depends(get_db),
+):
+    from app.models.media import Media
+    rows = (
+        db.query(Media)
+        .filter(Media.crop_id == crop_id)
+        .order_by(Media.is_main.desc(), Media.created_at.desc())
+        .all()
     )
+    return [
+        {
+            "id": m.id,
+            "url": f"/static/{m.path}",
+            "is_main": m.is_main,
+            "width": m.width,
+            "height": m.height,
+        }
+        for m in rows
+    ]
 
+@router.delete("/{media_id}")
+def delete_media(media_id: int, db: Session = Depends(get_db)):
+    from app.models.media import Media
+    m = db.query(Media).get(media_id)
+    if not m:
+        raise HTTPException(404, "Not found")
+    if m.is_main:
+        raise HTTPException(400, "Cannot delete main image; set another one as main first")
+
+    # delete file from disk (best-effort)
+    import os
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploads")
+    abs_path = os.path.join(UPLOAD_DIR, m.path)
+    try:
+        if os.path.isfile(abs_path):
+            os.remove(abs_path)
+    except Exception:
+        pass  # ignore file errors; DB remains source of truth
+
+    db.delete(m)
+    db.commit()
+    return {"ok": True}

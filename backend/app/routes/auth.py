@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from random import randint
 
-from app.schemas.schemas_auth import RegisterReq, LoginReq, VerifyReq, TokenOut
+from app.schemas.auth import RegisterReq, LoginReq, VerifyReq, TokenOut
 from app.db.session import get_db
 from app.models import User, Role
 from app.core.security import create_access_token
