@@ -1,10 +1,13 @@
 # app/routers/media.py
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi import Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.media import MediaOut
-from app.services.media_service import save_image_to_disk, create_media_record, set_main_for_crop
+from app.services.media_service import (
+    save_image_to_disk,
+    create_media_record,
+    set_main_for_crop,
+)
 from app.models.crop import Crop
 import os
 
@@ -20,7 +23,7 @@ async def upload_media(
     crop_id: int,
     is_main: bool = False,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     # 1) Basic validations
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -46,7 +49,7 @@ async def upload_media(
         rel_path=filename,  # store relative name only
         width=width,
         height=height,
-        is_main=is_main
+        is_main=is_main,
     )
 
     # 5) If main, unset other mains
@@ -66,19 +69,21 @@ async def upload_media(
         crop_id=media.crop_id,
     )
 
+
 @router.post("/{media_id}/make-main")
 def make_main(media_id: int, db: Session = Depends(get_db)):
     from app.models.media import Media
+
     m = db.query(Media).get(media_id)
     if not m:
         raise HTTPException(404, "Not found")
     # reuse the helper that unsets the previous main
     from app.services.media_service import set_main_for_crop
+
     set_main_for_crop(db, m)
     db.commit()
     db.refresh(m)
     return {"id": m.id, "url": f"/static/{m.path}", "is_main": m.is_main}
-
 
 
 @router.get("/by-crop/{crop_id}")
@@ -87,6 +92,7 @@ def list_media_for_crop(
     db: Session = Depends(get_db),
 ):
     from app.models.media import Media
+
     rows = (
         db.query(Media)
         .filter(Media.crop_id == crop_id)
@@ -104,17 +110,22 @@ def list_media_for_crop(
         for m in rows
     ]
 
+
 @router.delete("/{media_id}")
 def delete_media(media_id: int, db: Session = Depends(get_db)):
     from app.models.media import Media
+
     m = db.query(Media).get(media_id)
     if not m:
         raise HTTPException(404, "Not found")
     if m.is_main:
-        raise HTTPException(400, "Cannot delete main image; set another one as main first")
+        raise HTTPException(
+            400, "Cannot delete main image; set another one as main first"
+        )
 
     # delete file from disk (best-effort)
     import os
+
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploads")
     abs_path = os.path.join(UPLOAD_DIR, m.path)
