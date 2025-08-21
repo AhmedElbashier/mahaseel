@@ -1,13 +1,23 @@
+from __future__ import annotations
+
 from sqlalchemy import String, Integer, DateTime, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 import enum
-from datetime import datetime  # ✅
+from datetime import datetime 
+from typing import TYPE_CHECKING
+
+from typing import TYPE_CHECKING
+from datetime import datetime
+from .crop import Crop
+from .order import Order
+
 
 class Role(enum.Enum):
     seller = "seller"
     buyer = "buyer"
     admin = "admin"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -15,9 +25,21 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100))
     phone: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     role: Mapped[Role] = mapped_column(Enum(Role), default=Role.seller, nullable=False)
-    created_at: Mapped["datetime"] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
-    crops: Mapped[list["Crop"]] = relationship(back_populates="seller", cascade="all, delete-orphan")
+    crops: Mapped[list[Crop]] = relationship(
+        back_populates="seller", cascade="all, delete-orphan"
+    )
+    orders_made: Mapped[list[Order]] = relationship(
+    created_at: Mapped["datetime"] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    crops: Mapped[list["Crop"]] = relationship(
+        back_populates="seller", cascade="all, delete-orphan"
+    )
     orders_made: Mapped[list["Order"]] = relationship(
         back_populates="buyer", foreign_keys="Order.buyer_id"
     )

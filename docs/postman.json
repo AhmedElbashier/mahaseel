@@ -1,0 +1,243 @@
+{
+  "info": {
+    "name": "Mahaseel API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET /_routes",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost/_routes",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "_routes"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /healthz",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost/healthz",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "healthz"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /auth/ping",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost/auth/ping",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "auth",
+            "ping"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /auth/register",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://localhost/auth/register",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "auth",
+            "register"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /auth/login",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://localhost/auth/login",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /auth/verify",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://localhost/auth/verify",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "auth",
+            "verify"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /crops",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://localhost/crops",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "crops"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /crops",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost/crops",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "crops"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /crops/{crop_id}",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost/crops/{crop_id}",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "crops",
+            "{crop_id}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /media/upload",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://localhost/media/upload",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "media",
+            "upload"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /media/{media_id}/make-main",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://localhost/media/{media_id}/make-main",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "media",
+            "{media_id}",
+            "make-main"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /media/by-crop/{crop_id}",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost/media/by-crop/{crop_id}",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "media",
+            "by-crop",
+            "{crop_id}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "DELETE /media/{media_id}",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "http://localhost/media/{media_id}",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "media",
+            "{media_id}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /me",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost/me",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "me"
+          ]
+        }
+      }
+    }
+  ]
+}
