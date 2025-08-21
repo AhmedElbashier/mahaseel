@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl
 from typing import List
+from datetime import timedelta
 
 class Settings(BaseSettings):
     app_name: str = "mahaseel"
@@ -8,7 +9,11 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
-    database_url: str = "sqlite:///./dev.db"  # replaced on Day 3
+    jwt_secret: str = "CHANGE_ME_DEV_ONLY"
+    jwt_algorithm: str = "HS256"
+    jwt_access_minutes: int = 60
+
+    database_url: str = "postgresql+psycopg://mahaseel:mahaseel@localhost:5432/mahaseel"
     cors_origins: List[AnyHttpUrl] | List[str] = []
 
     model_config = SettingsConfigDict(env_file="backend/.env", case_sensitive=False)
@@ -16,6 +21,13 @@ class Settings(BaseSettings):
     @property
     def is_dev(self) -> bool:
         return self.env.lower() == "dev"
+
+
+    # helper
+    @property
+    def access_expires(self) -> timedelta:
+        return timedelta(minutes=self.jwt_access_minutes)
+
 
 settings = Settings()
 
