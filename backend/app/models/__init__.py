@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .user import User, Role
 from .crop import Crop
 from .media import Media

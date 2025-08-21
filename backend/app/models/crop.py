@@ -1,6 +1,12 @@
+from __future__ import annotations
+
 from sqlalchemy import String, Integer, Float, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,6 +33,7 @@ class Crop(Base):
     address: Mapped[str | None] = mapped_column(String(160), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
     created_at: Mapped["datetime"] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -34,6 +41,12 @@ class Crop(Base):
     seller_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
+    seller: Mapped[User] = relationship(back_populates="crops")
+
+    media: Mapped[list[Media]] = relationship(
+        back_populates="crop", cascade="all, delete-orphan"
+    )
+    orders: Mapped[list[Order]] = relationship(back_populates="crop")
     seller: Mapped["User"] = relationship(back_populates="crops")
 
     media: Mapped[list["Media"]] = relationship(
