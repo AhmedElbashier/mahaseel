@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.db
+.env
+.venv/
+venv/
+*.sqlite3
+
+# FastAPI / Alembic
+alembic/versions/*.pyc
+
+# Flutter / Dart
+.mdart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.lock
+
+# Logs
+*.log
+logs/
+coverage/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+**/docker-data/
+**/uploads/
