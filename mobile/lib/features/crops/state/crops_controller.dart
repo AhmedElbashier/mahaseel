@@ -36,32 +36,34 @@ class CropsState {
     bool? hasMore,
     int? page,
     String? error,
-  }) => CropsState(
-    items: items ?? this.items,
-    loading: loading ?? this.loading,
-    loadingMore: loadingMore ?? this.loadingMore,
-    hasMore: hasMore ?? this.hasMore,
-    page: page ?? this.page,
-    error: error,
-  );
+  }) =>
+      CropsState(
+        items: items ?? this.items,
+        loading: loading ?? this.loading,
+        loadingMore: loadingMore ?? this.loadingMore,
+        hasMore: hasMore ?? this.hasMore,
+        page: page ?? this.page,
+        error: error,
+      );
 }
 
 final cropsControllerProvider =
 StateNotifierProvider<CropsController, CropsState>((ref) {
-  return CropsController(ref.read);
+  return CropsController(ref);
 });
 
 class CropsController extends StateNotifier<CropsState> {
-  CropsController(this._read) : super(CropsState.initial()) {
+  CropsController(this.ref) : super(CropsState.initial()) {
     loadFirstPage();
   }
-  final Reader _read;
+
+  final Ref ref;
 
   Future<void> loadFirstPage() async {
     state = CropsState.initial();
     try {
-      final repo = _read(cropsRepoProvider);
-      final page = 1;
+      final repo = ref.read(cropsRepoProvider);
+      const page = 1;
       final result = await repo.fetch(page: page);
       state = state.copyWith(
         items: result.items,
@@ -81,7 +83,7 @@ class CropsController extends StateNotifier<CropsState> {
     if (!state.hasMore || state.loadingMore) return;
     state = state.copyWith(loadingMore: true);
     try {
-      final repo = _read(cropsRepoProvider);
+      final repo = ref.read(cropsRepoProvider);
       final next = state.page + 1;
       final result = await repo.fetch(page: next);
       state = state.copyWith(
@@ -91,7 +93,6 @@ class CropsController extends StateNotifier<CropsState> {
         page: next,
       );
     } catch (e) {
-      // Keep old items; surface a soft error
       state = state.copyWith(loadingMore: false, error: e.toString());
     }
   }

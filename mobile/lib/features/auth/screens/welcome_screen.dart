@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -14,9 +15,7 @@ class WelcomeScreen extends StatelessWidget {
             const Text('أهلاً بك في محاصيل'),
             const SizedBox(height: 12),
             FilledButton(
-              onPressed: () {
-                // TODO: go to login (Day 12)
-              },
+                onPressed: () => context.push('/login'),
               child: const Text('ابدأ'),
             ),
           ],
