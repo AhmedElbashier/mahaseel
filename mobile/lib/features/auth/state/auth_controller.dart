@@ -44,8 +44,8 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> startLogin(String phone) async {
     state = state.copyWith(loading: true, error: null, phone: phone);
     try {
-      final otp = await ref.read(authRepoProvider).login(phone: phone);
-      state = state.copyWith(loading: false, devOtp: otp);
+      final devOtp = await ref.read(authRepoProvider).login(phone: phone);
+      state = state.copyWith(loading: false, devOtp: devOtp);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
     }
