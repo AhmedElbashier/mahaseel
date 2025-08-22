@@ -33,6 +33,6 @@ class Crop {
     state: j['state'] as String?,
     locality: j['locality'] as String?,
     address: j['address'] as String?,
-    imageUrl: j['image_url'] as String? ?? j['imageUrl'] as String?,
+    imageUrl: j['image_url'] as String?,
   );
 }

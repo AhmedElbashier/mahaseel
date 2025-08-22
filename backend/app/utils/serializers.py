@@ -26,5 +26,5 @@ def serialize_crop(crop: Crop) -> dict:
             "address": crop.address,
         },
         "notes": crop.notes,
-        "main_image_url": url,
+        "image_url": url,
     }
