@@ -28,7 +28,7 @@ class CropOut(BaseModel):
     seller_id: int
     location: LocationIn
     notes: Optional[str] = None
-    image_url: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, description="URL of the main image")
 
     class Config:
         from_attributes = True

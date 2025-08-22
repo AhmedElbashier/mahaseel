@@ -12,7 +12,7 @@ class CropCard extends StatelessWidget {
     final priceText = '${crop.price.toStringAsFixed(0)} ${crop.unit}';
 
     final locationText = [crop.location.state, crop.location.locality].where((e) => (e ?? '').isNotEmpty).join('، ');
-    final String? thumbUrl = crop.mainImageUrl ??
+    final String? thumbUrl = crop.imageUrl ??
         ((crop.images.isNotEmpty) ? crop.images.first : null);
 
     return Card(
