@@ -102,9 +102,10 @@ class CropsRepo {
 
 
   Future<Paginated<Crop>> fetch({required int page, int limit = 20}) async {
+    final offset = (page - 1) * limit;
     final res = await _dio.get('/crops', queryParameters: {
-      'page': page,
       'limit': limit,
+      'offset': offset,
     });
 
     final data = res.data;
@@ -116,7 +117,7 @@ class CropsRepo {
 
       final bool fullPage = items.length >= limit;
       final syntheticTotal =
-      fullPage ? (page * limit + 1) : (page - 1) * limit + items.length;
+          fullPage ? (page * limit + 1) : (page - 1) * limit + items.length;
 
       return Paginated<Crop>(items, page, limit, syntheticTotal);
     }
@@ -127,9 +128,13 @@ class CropsRepo {
           .map((e) => Crop.fromJson(e as Map<String, dynamic>))
           .toList();
 
+      final int pageFromResponse = (data['page'] as num?)?.toInt() ??
+          ((data['offset'] as num?) != null
+              ? ((data['offset'] as num) ~/ ((data['limit'] as num?)?.toInt() ?? limit) + 1)
+              : page);
       return Paginated<Crop>(
         items,
-        (data['page'] as num?)?.toInt() ?? page,
+        pageFromResponse,
         (data['limit'] as num?)?.toInt() ?? limit,
         (data['total'] as num?)?.toInt() ?? items.length,
       );
