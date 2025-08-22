@@ -1,6 +1,7 @@
 // lib/features/crops/data/crops_repo.dart
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../services/api_client.dart';
 import './crop.dart';
@@ -22,8 +23,11 @@ class CropsRepo {
     final res = await _dio.get('/crops/$id');
     final crop = Crop.fromJson(res.data as Map<String, dynamic>);
     // DEBUG
-    // ignore: avoid_print
-    print('repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}');
+    if (kDebugMode) {
+      debugPrint(
+        'repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}',
+      );
+    }
     return crop;
   }
   Future<Crop> createJson({
