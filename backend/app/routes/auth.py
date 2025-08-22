@@ -10,9 +10,11 @@ from app.core import otp_store
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
 @router.get("/ping")
 def ping():
     return {"ok": True}
+
 
 @router.post("/register", status_code=201)
 def register(data: RegisterReq, db: Session = Depends(get_db)):
@@ -20,8 +22,11 @@ def register(data: RegisterReq, db: Session = Depends(get_db)):
     if user:
         raise HTTPException(status_code=409, detail="phone already registered")
     user = User(name=data.name, phone=data.phone, role=Role.seller)
-    db.add(user); db.commit(); db.refresh(user)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return {"id": user.id, "phone": user.phone, "name": user.name}
+
 
 @router.post("/login")
 def login(data: LoginReq, db: Session = Depends(get_db)):
@@ -32,6 +37,7 @@ def login(data: LoginReq, db: Session = Depends(get_db)):
     otp_store.put(user.phone, otp)
     return {"dev_otp": otp, "message": "DEV ONLY. Use /auth/verify within 5 minutes."}
 
+
 @router.post("/verify", response_model=TokenOut)
 def verify(data: VerifyReq, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.phone == data.phone).first()
@@ -41,5 +47,5 @@ def verify(data: VerifyReq, db: Session = Depends(get_db)):
     if not otp or otp != data.otp:
         raise HTTPException(status_code=400, detail="invalid or expired otp")
     otp_store.pop(user.phone)
-    token = create_access_token(user.id, {"role": user.role.value, "phone": user.phone})
+    token = create_access_token(user.id, user.role.value, {"phone": user.phone})
     return TokenOut(access_token=token)
