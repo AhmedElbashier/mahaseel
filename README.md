@@ -41,4 +41,12 @@ See [docs/tech-decisions.md](docs/tech-decisions.md) for pinned versions and arc
 ---
 
 ## 👩🏽‍🌾 Status
-Day 1 — **Project Bootstrap** 🟢
+
+Work completed through **Day 13**.
+
+### Key accomplishments
+- Bootstrapped repository structure and initial project setup.
+- Scaffolded FastAPI backend and Flutter mobile app foundations.
+- Added Docker-based development environment and basic CI/CD pipeline.
+- Documented tech stack and foundational decisions for transparency.
+
