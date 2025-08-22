@@ -5,10 +5,12 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app import models  # noqa: F401
+from app.models import User, Role
 from app.models.media import Media
 from app.main import app
 from app.db.session import get_db
 from app.core import otp_store
+from app.core.security import create_access_token
 
 @pytest.fixture
 def db():
@@ -48,4 +50,18 @@ def auth_headers(client):
     otp = login.json()["dev_otp"]
     verify = client.post("/auth/verify", json={"phone": phone, "otp": otp})
     token = verify.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture
+def buyer_headers(db):
+    user = User(name="Buyer", phone="0000000000", role=Role.buyer)
+    db.add(user); db.commit(); db.refresh(user)
+    token = create_access_token(user.id, user.role.value)
+    return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture
+def admin_headers(db):
+    user = User(name="Admin", phone="1111111111", role=Role.admin)
+    db.add(user); db.commit(); db.refresh(user)
+    token = create_access_token(user.id, user.role.value)
     return {"Authorization": f"Bearer {token}"}
