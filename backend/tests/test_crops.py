@@ -33,3 +33,18 @@ def test_crop_create_list_filter(client: TestClient, auth_headers):
     data_filtered = filtered.json()
     assert len(data_filtered) == 1
     assert data_filtered[0]["location"]["state"] == "State1"
+
+
+def test_crop_get(client: TestClient, auth_headers):
+    missing = client.get("/crops/999")
+    assert missing.status_code == 404
+
+    create = client.post("/crops", json=_sample_crop(), headers=auth_headers)
+    assert create.status_code == 201
+    crop_id = create.json()["id"]
+
+    fetched = client.get(f"/crops/{crop_id}")
+    assert fetched.status_code == 200
+    data = fetched.json()
+    assert data["id"] == crop_id
+    assert data["name"] == "Tomatoes"

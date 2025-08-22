@@ -71,7 +71,7 @@ def get_crop(request: Request,crop_id: int, db: Session = Depends(get_db)):
         db.query(Crop)
         .options(selectinload(Crop.media))
         .get(crop_id)
-    ),
-    if not c:
+    )
+    if c is None:
         raise HTTPException(status_code=404, detail="crop not found")
     return serialize_crop(c)
