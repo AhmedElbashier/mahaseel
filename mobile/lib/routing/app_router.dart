@@ -1,6 +1,6 @@
 // lib/routing/app_router.dart
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +9,8 @@ import '../features/auth/screens/login_phone_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
 import '../features/crops/screens/crop_list_screen.dart';
 import '../features/auth/state/auth_controller.dart';
+import '../features/crops/screens/add_crop_screen.dart';
+import '../features/crops/screens/crop_details_screen.dart';
 
 /// Minimal Listenable that triggers router refreshes from a Stream.
 class StreamRouterRefresh extends ChangeNotifier {
@@ -40,7 +42,17 @@ GoRouter createRouter(WidgetRef ref) {
         ),
       ),
       GoRoute(path: '/home', builder: (_, __) => const CropListScreen()),
+      GoRoute(path: '/crops/add', builder: (ctx, st) => const AddCropScreen()),
+      GoRoute(
+        path: '/crops/:id',
+        builder: (ctx, st) {
+          final id = int.parse(st.pathParameters['id']!);
+          return CropDetailsScreen(id: id);
+        },
+      ),
     ],
+    initialLocation: '/home',
+
 
     redirect: (ctx, st) {
       final auth = ref.read(authControllerProvider);

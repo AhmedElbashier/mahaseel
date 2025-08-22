@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../state/crops_controller.dart';
 import '../../../widgets/crop_card.dart';
 import '../../../widgets/crop_skeleton.dart';
@@ -34,12 +35,22 @@ class _CropListScreenState extends ConsumerState<CropListScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(cropsControllerProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('المحاصيل')),
+    return Scaffold(  appBar: AppBar(
+      title: const Text('المحاصيل'),
+      actions: [
+        IconButton(
+          onPressed: () => context.push('/crops/add'),
+          icon: const Icon(Icons.add),
+          tooltip: 'إضافة محصول',
+        ),
+      ],
+    ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(cropsControllerProvider.notifier).refresh(),
         child: Builder(
+
           builder: (context) {
+
             if (state.loading) {
               return ListView.separated(
                 padding: const EdgeInsets.all(12),
@@ -94,10 +105,8 @@ class _CropListScreenState extends ConsumerState<CropListScreen> {
                 final crop = state.items[i];
                 return CropCard(
                   crop: crop,
-                  onTap: () {
-                    // TODO: navigate to details screen (Day 15)
+                    onTap: () => context.push('/crops/${crop.id}'),
                     // context.go('/crop/${crop.id}');
-                  },
                 );
               },
             );

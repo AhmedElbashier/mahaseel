@@ -8,11 +8,12 @@ class CropCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final priceText = (crop.price != null && crop.unit != null)
-        ? '${crop.price!.toStringAsFixed(0)} ${crop.unit}'
-        : (crop.price != null ? crop.price!.toStringAsFixed(0) : '—');
+    // ignore: unnecessary_null_comparison
+    final priceText = '${crop.price.toStringAsFixed(0)} ${crop.unit}';
 
-    final locationText = [crop.state, crop.locality].where((e) => (e ?? '').isNotEmpty).join('، ');
+    final locationText = [crop.location.state, crop.location.locality].where((e) => (e ?? '').isNotEmpty).join('، ');
+    final String? thumbUrl = crop.mainImageUrl ??
+        ((crop.images.isNotEmpty) ? crop.images.first : null);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -24,10 +25,14 @@ class CropCard extends StatelessWidget {
           children: [
             SizedBox(
               width: 110, height: 100,
-              child: crop.imageUrl == null
+              child: (thumbUrl == null)
                   ? Container(color: Colors.grey.shade200)
-                  : Image.network(crop.imageUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200)),
+                  : Image.network(
+                thumbUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Container(color: Colors.grey.shade200),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(

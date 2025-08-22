@@ -31,7 +31,6 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
 
 class AuthController extends StateNotifier<AuthState> {
   AuthController(this.ref): super(AuthState()){
-    ApiClient().attachAuth();
     _bootstrap();
   }
   final Ref ref;
@@ -56,7 +55,7 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(loading: true, error: null);
     try {
       final token = await ref.read(authRepoProvider).verify(phone: phone, otp: otp);
-      await ApiClient().saveToken(token);
+      await ApiClient().saveToken(token);      // <-- keep this HERE
       state = state.copyWith(loading: false, isAuthenticated: true, devOtp: null);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());

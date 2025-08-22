@@ -28,6 +28,7 @@ class OtpScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            Text('OTP (dev): ${auth.devOtp}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
             TextFormField(
               controller: otpCtrl,
               keyboardType: TextInputType.number,
