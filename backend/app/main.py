@@ -6,6 +6,12 @@ import logging
 
 import os
 
+
+from app.core.cors import add_cors
+from app.core.errors import add_error_handlers
+from app.core.ratelimit import add_rate_limiting
+
+
 from app.core.config import settings
 from app.core.logging_conf import configure_logging
 from app.routes.auth import router as auth_router
@@ -44,7 +50,12 @@ def healthz():
     log.info("healthz ping", extra={"env": settings.env})
     return {"status": "ok", "env": settings.env}
 
+# hardening
+add_cors(app)
+add_rate_limiting(app)
+add_error_handlers(app)
 
+# routes
 app.include_router(auth_router)
 app.include_router(crops_router)
 app.include_router(media_router)

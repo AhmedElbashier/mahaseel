@@ -3,13 +3,15 @@ from jose import jwt
 from typing import Any, Optional
 from app.core.config import settings
 
-def create_access_token(subject: str | int, extra: Optional[dict[str, Any]] = None) -> str:
+def create_access_token(subject: str | int,role: str, extra: Optional[dict[str, Any]] = None) -> str:
     now = datetime.now(tz=timezone.utc)
     payload: dict[str, Any] = {
         "sub": str(subject),
         "iat": int(now.timestamp()),
         "exp": int((now + settings.access_expires).timestamp()),
         "typ": "access",
+        "role": role,
+
     }
     if extra:
         payload.update(extra)

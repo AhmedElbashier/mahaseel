@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from urllib.parse import quote
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.core.ratelimit import limiter
 
 from app.db.session import get_db
 from app.models import User, Role
@@ -8,8 +11,10 @@ from app.models import User, Role
 router = APIRouter(prefix="/contact", tags=["contact"])
 
 
+@limiter.limit("60/minute")
 @router.get("/{seller_id}/whatsapp")
 def whatsapp_link(
+    request: Request,
     seller_id: int,
     text: str = Query("", description="Message to pre-fill"),
     db: Session = Depends(get_db),

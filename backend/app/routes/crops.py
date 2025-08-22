@@ -1,5 +1,5 @@
 # app/api/routes/crops.py
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 from typing import List, Optional
@@ -9,6 +9,9 @@ from app.db.session import get_db
 from app.models import Crop
 from app.api.deps import get_current_user
 from app.utils.serializers import serialize_crop
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.core.ratelimit import limiter
 
 router = APIRouter(prefix="/crops", tags=["crops"])
 
@@ -45,8 +48,10 @@ def create_crop(
     db.refresh(crop, attribute_names=["media"])
     return serialize_crop(crop)
 
+@limiter.limit("60/minute")
 @router.get("", response_model=List[CropOut])
 def list_crops(
+    request: Request,
     db: Session = Depends(get_db),
     state: Optional[str] = Query(default=None),
     limit: int = Query(50, ge=1, le=100),
@@ -59,13 +64,14 @@ def list_crops(
     rows = q.order_by(Crop.id.desc()).offset(offset).limit(limit).all()
     return [serialize_crop(c) for c in rows]
 
-@router.get("/{crop_id}", response_model=CropOut)
-def get_crop(crop_id: int, db: Session = Depends(get_db)):
+@limiter.limit("60/minute")
+@router.get("/{crop_id}", response_model=CropOut,)
+def get_crop(request: Request,crop_id: int, db: Session = Depends(get_db)):
     c = (
         db.query(Crop)
         .options(selectinload(Crop.media))
         .get(crop_id)
-    )
+    ),
     if not c:
         raise HTTPException(status_code=404, detail="crop not found")
     return serialize_crop(c)

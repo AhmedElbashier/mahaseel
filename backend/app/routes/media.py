@@ -1,5 +1,5 @@
 # app/routers/media.py
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.media import MediaOut
@@ -10,6 +10,9 @@ from app.services.media_service import (
 )
 from app.models.crop import Crop
 import os
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.core.ratelimit import limiter
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -18,8 +21,10 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploads")  # same place you mounted
 MAX_BYTES = 10 * 1024 * 1024  # 10MB max upload
 
 
+@limiter.limit("60/minute")
 @router.post("/upload", response_model=MediaOut)
 async def upload_media(
+    request: Request,
     crop_id: int,
     is_main: bool = False,
     file: UploadFile = File(...),
@@ -70,8 +75,9 @@ async def upload_media(
     )
 
 
+@limiter.limit("60/minute")
 @router.post("/{media_id}/make-main")
-def make_main(media_id: int, db: Session = Depends(get_db)):
+def make_main(request: Request,media_id: int, db: Session = Depends(get_db)):
     from app.models.media import Media
 
     m = db.query(Media).get(media_id)
@@ -86,8 +92,10 @@ def make_main(media_id: int, db: Session = Depends(get_db)):
     return {"id": m.id, "url": f"/static/{m.path}", "is_main": m.is_main}
 
 
+@limiter.limit("60/minute")
 @router.get("/by-crop/{crop_id}")
 def list_media_for_crop(
+    request: Request,
     crop_id: int,
     db: Session = Depends(get_db),
 ):
@@ -111,8 +119,9 @@ def list_media_for_crop(
     ]
 
 
+@limiter.limit("60/minute")
 @router.delete("/{media_id}")
-def delete_media(media_id: int, db: Session = Depends(get_db)):
+def delete_media(request: Request,media_id: int, db: Session = Depends(get_db)):
     from app.models.media import Media
 
     m = db.query(Media).get(media_id)

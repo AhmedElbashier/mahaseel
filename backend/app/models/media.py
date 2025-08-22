@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime
-from sqlalchemy import (
-    String,
-    Integer,
-    Boolean,
-    ForeignKey,
-    DateTime,
-    func,
-    Index,
-)
+from typing import TYPE_CHECKING
+
+from sqlalchemy import String, Integer, Boolean, ForeignKey, DateTime, func, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.models.crop import Crop
+
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from .crop import Crop
 
 
 class Media(Base):
@@ -30,9 +27,9 @@ class Media(Base):
     crop_id: Mapped[int] = mapped_column(
         ForeignKey("crops.id", ondelete="CASCADE"), index=True
     )
-    crop: Mapped[Crop] = relationship(back_populates="media")
+    crop: Mapped["Crop"] = relationship(back_populates="media")
 
-    # Optional
+    # Optional partial unique index: only one main image per crop
     __table_args__ = (
         Index(
             "uq_media_one_per_crop",
@@ -43,4 +40,4 @@ class Media(Base):
     )
 
     def __repr__(self) -> str:
-        return f"Media id = {self.id}, crop_id={self.crop_id} main={self.is_main}"
+        return f"Media id={self.id}, crop_id={self.crop_id}, main={self.is_main}"

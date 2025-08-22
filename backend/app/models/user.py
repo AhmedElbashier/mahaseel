@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from sqlalchemy import String, Integer, DateTime, func, Enum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.base import Base
 import enum
-from datetime import datetime 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from typing import TYPE_CHECKING
-from datetime import datetime
-from .crop import Crop
-from .order import Order
+from sqlalchemy import String, Integer, DateTime, func, Enum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
+
+if TYPE_CHECKING:
+    from .crop import Crop
+    from .order import Order
 
 
 class Role(enum.Enum):
@@ -21,6 +22,7 @@ class Role(enum.Enum):
 
 class User(Base):
     __tablename__ = "users"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100))
     phone: Mapped[str] = mapped_column(String(32), unique=True, index=True)
@@ -29,14 +31,7 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    crops: Mapped[list[Crop]] = relationship(
-        back_populates="seller", cascade="all, delete-orphan"
-    )
-    orders_made: Mapped[list[Order]] = relationship(
-    created_at: Mapped["datetime"] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
+    # Relationships (use forward refs as strings)
     crops: Mapped[list["Crop"]] = relationship(
         back_populates="seller", cascade="all, delete-orphan"
     )

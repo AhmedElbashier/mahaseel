@@ -1,3 +1,4 @@
+from typing import Iterable
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -24,3 +25,14 @@ def get_current_user(
         return user
     except JWTError:
         raise HTTPException(status_code=401, detail="invalid token")
+
+
+def require_roles(*allowed: Iterable[str]):
+    def checker(current_user: User = Depends(get_current_user)):
+        if current_user.role.value not in allowed:
+            raise HTTPException(status_code=403, detail="Forbidden: insufficient role")
+        return current_user
+    return checker
+
+# Example usage:
+# @router.post("/crops", dependencies=[Depends(require_roles("seller","admin"))])

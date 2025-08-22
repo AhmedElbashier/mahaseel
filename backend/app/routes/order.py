@@ -6,9 +6,13 @@ from app.db.session import get_db
 from app.models import Order, OrderStatus, Crop
 from app.schemas.order import OrderCreate, OrderOut
 from app.api.deps import get_current_user
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.core.ratelimit import limiter
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
+@limiter.limit("60/minute")
 @router.post("", response_model=OrderOut, status_code=201)
 def create_order(
     data: OrderCreate = Body(...),
@@ -29,6 +33,7 @@ def create_order(
     db.add(order); db.commit(); db.refresh(order)
     return order
 
+@limiter.limit("60/minute")
 @router.get("", response_model=List[OrderOut])
 def list_orders(
     db: Session = Depends(get_db),
@@ -42,6 +47,7 @@ def list_orders(
     if buyer_id: q = q.filter(Order.buyer_id == buyer_id)
     return q.order_by(Order.id.desc()).offset(offset).limit(limit).all()
 
+@limiter.limit("60/minute")
 @router.get("/{order_id}", response_model=OrderOut)
 def get_order(order_id: int, db: Session = Depends(get_db)):
     o = db.query(Order).get(order_id)
