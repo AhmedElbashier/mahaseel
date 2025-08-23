@@ -1,2 +1,4 @@
-from . import base
-from . import session
+# backend/app/db/__init__.py
+from .base import Base
+
+__all__ = ["Base"]
