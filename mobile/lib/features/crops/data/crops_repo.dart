@@ -15,7 +15,8 @@ class Paginated<T> {
 }
 
 class CropsRepo {
-  final Dio _dio = ApiClient().dio;
+  final Dio _dio;
+  CropsRepo(this._dio);
 
   // --- Day 15: details screen needs this
   Future<Crop> getById(int id) async {
