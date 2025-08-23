@@ -10,8 +10,8 @@ WORKDIR /app
 FROM base AS builder
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-COPY backend/requirements.txt /app/requirements.txt
-RUN pip install --upgrade pip && pip install -r /app/requirements.txt
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # ---- Runtime ----
 FROM base AS runtime
