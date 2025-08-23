@@ -5,9 +5,10 @@ from typing import Iterable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal
+from app.db.session import get_session_factory
 from app.models import User, Role, Crop  # adjust if your paths are different
 
+SessionLocal = get_session_factory()
 # --- Configurable sample sets -------------------------------------------------
 
 SELLERS = [

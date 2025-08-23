@@ -10,5 +10,5 @@ def run_seed(x_seed_token: str | None = Header(default=None)):
     expected = os.getenv("SEED_TOKEN")
     if not expected or x_seed_token != expected:
         raise HTTPException(status_code=401, detail="unauthorized")
-    seed_script.main()
+    seed_script.run()
     return {"status": "ok"}
