@@ -23,6 +23,7 @@ from app.routes.auth import router as auth_router
 from app.routes.crops import router as crops_router
 from app.routes.media import router as media_router
 from app.routes.contact import router as contact_router
+from app.routes import admin as admin_routes
 
 from app.api.deps import get_current_user
 
@@ -61,6 +62,7 @@ add_rate_limiting(app)
 add_error_handlers(app)
 
 # routes
+app.include_router(admin_routes)
 app.include_router(auth_router)
 app.include_router(crops_router)
 app.include_router(media_router)

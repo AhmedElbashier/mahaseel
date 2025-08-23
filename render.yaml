@@ -24,6 +24,8 @@ services:
         fromDatabase:
           name: mahaseel-db-staging
           property: connectionString
+      - key: SEED_TOKEN
+          generateValue: true
 
 databases:
   - name: mahaseel-db-staging
