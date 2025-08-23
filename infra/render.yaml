@@ -1,0 +1,30 @@
+# infra/render.yaml
+services:
+  - type: web
+    name: mahaseel-backend-staging
+    env: docker
+    plan: free
+    autoDeploy: true
+    region: frankfurt  # or oregon; pick close to users
+    healthCheckPath: /healthz
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    envVars:
+      - key: ENV
+        value: staging
+      - key: LOG_LEVEL
+        value: info
+      - key: JWT_ALG
+        value: HS256
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mahaseel-db-staging
+          property: connectionString
+
+databases:
+  - name: mahaseel-db-staging
+    plan: free
