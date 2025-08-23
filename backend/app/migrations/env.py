@@ -3,20 +3,19 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-# Import our settings & models
+# Import settings & models (but NOT session/engine)
 from app.core.config import settings
 from app.db.base import Base
-from app.models import *  # ensures models are imported for autogenerate
+from app.models import *  # ensure models are imported so metadata is populated
 
-# this is the Alembic Config object
+# Alembic Config
 config = context.config
 
-# set DB URL dynamically from settings
-if config.get_main_option("sqlalchemy.url") in (None, "", "sqlite:///./dev.db"):
-    config.set_main_option("sqlalchemy.url", settings.database_url)
+# Always set the URL from settings (use the normalized property!)
+config.set_main_option("sqlalchemy.url", settings.sqlalchemy_url)
 
-# Interpret the config file for Python logging.
-if config.config_file_name is not None:
+# Logging
+if config.config_file_name:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
@@ -26,6 +25,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        literal_binds=True,
         compare_type=True,
         compare_server_default=True,
     )
@@ -33,8 +33,10 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 def run_migrations_online() -> None:
+    section = config.get_section(config.config_ini_section) or {}
+    section["sqlalchemy.url"] = config.get_main_option("sqlalchemy.url")
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        section,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

@@ -7,6 +7,18 @@ from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, field_validator
 
+
+def _normalize_db_url(url: str) -> str:
+    if not url: return url
+    url = url.strip()
+    # keep if already using postgresql+psycopg://
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return url
+
+
 class Settings(BaseSettings):
     app_name: str = "mahaseel"
     env: str = "dev"
@@ -17,7 +29,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_minutes: int = 60
 
-    # Host run default (localhost)
+    # Local default (host-run)
     database_url: str = "postgresql+psycopg://mahaseel:mahaseel@localhost:5432/mahaseel"
 
     # Accept either a list or a comma-separated string from env
@@ -26,8 +38,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
-        extra="ignore",         # <-- ignore PGHOST, etc.
-        env_ignore_empty=True,  # <-- treat empty strings as "unset"
+        extra="ignore",
+        env_ignore_empty=True,
     )
 
     @field_validator("cors_origins", mode="before")
@@ -47,11 +59,27 @@ class Settings(BaseSettings):
 
     @property
     def effective_database_url(self) -> str:
-        # Prefer docker DSN in containers, else localhost for host runs
-        return os.getenv("DATABASE_URL_DOCKER", self.database_url)
+        """
+        Priority:
+          1) DATABASE_URL (Render/Railway standard)
+          2) DATABASE_URL_DOCKER (your compose/k8s override)
+          3) self.database_url (local default)
+        """
+        raw = (
+            os.getenv("DATABASE_URL")
+            or os.getenv("DATABASE_URL_DOCKER")
+            or self.database_url
+        )
+        return raw
+
+    @property
+    def sqlalchemy_url(self) -> str:
+        """The normalized URL you should hand to SQLAlchemy/Alembic."""
+        return _normalize_db_url(self.effective_database_url)
 
     def validate_for_runtime(self) -> None:
         if not self.is_dev and self.jwt_secret == "CHANGE_ME_DEV_ONLY":
             raise RuntimeError("Unsafe JWT secret in non-dev environment")
+
 
 settings = Settings()
