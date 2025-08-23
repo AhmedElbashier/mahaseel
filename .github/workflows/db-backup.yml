@@ -1,0 +1,52 @@
+name: DB Backup (staging)
+
+on:
+  schedule:
+    - cron: "0 1 * * *"   # 01:00 UTC daily
+  workflow_dispatch: {}
+
+concurrency:
+  group: db-backup-staging
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # least privilege
+    env:
+      PGHOST: ${{ secrets.PGHOST }}
+      PGUSER: ${{ secrets.PGUSER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      PGDATABASE: ${{ secrets.PGDATABASE }}
+      BACKUP_DIR: backups
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Run backup script
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x infra/scripts/backup.sh
+          ./infra/scripts/backup.sh
+          ls -lh "${BACKUP_DIR}"
+
+      - name: Sanity check backup (non-empty)
+        shell: bash
+        run: |
+          test -n "$(ls -A ${BACKUP_DIR}/*.sql.gz 2>/dev/null)" || { echo "No backup files created"; exit 1; }
+          # Optional: verify gzip and first lines of dump header
+          gunzip -t ${BACKUP_DIR}/*.sql.gz
+
+      - name: Upload artifact (7-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg-backup-${{ github.run_id }}
+          path: backups/*.sql.gz
+          retention-days: 7

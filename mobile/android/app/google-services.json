@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "554036885894",
+    "project_id": "mahaseel-sd",
+    "storage_bucket": "mahaseel-sd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:554036885894:android:232100b7f59b73f7351407",
+        "android_client_info": {
+          "package_name": "com.mahaseel.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBsI08WeLdrN5UGBAKDsDrXX_SB7-LOTw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

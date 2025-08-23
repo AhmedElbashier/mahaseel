@@ -2,7 +2,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 
-import '../../../services/api_client.dart';
 import './crop.dart';
 import './location.dart';
 
@@ -15,17 +14,17 @@ class Paginated<T> {
 }
 
 class CropsRepo {
-  final Dio _dio = ApiClient().dio;
+  final Dio _dio;
+  CropsRepo(this._dio);
 
-  // --- Day 15: details screen needs this
   Future<Crop> getById(int id) async {
     final res = await _dio.get('/crops/$id');
     final crop = Crop.fromJson(res.data as Map<String, dynamic>);
-    // DEBUG
     // ignore: avoid_print
     print('repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}');
     return crop;
   }
+
   Future<Crop> createJson({
     required String name,
     required String type,
@@ -52,6 +51,7 @@ class CropsRepo {
     });
     return Crop.fromJson(res.data as Map<String, dynamic>);
   }
+
   Future<Crop> create({
     required String name,
     required String type,
@@ -62,7 +62,6 @@ class CropsRepo {
     String? notes,
     List<File> images = const [],
   }) async {
-    // No image support on the API yet → send JSON
     if (images.isEmpty) {
       return createJson(
         name: name,
@@ -74,8 +73,6 @@ class CropsRepo {
         notes: notes,
       );
     }
-
-    // (When backend supports uploads, keep this block.)
     final form = FormData.fromMap({
       'name': name,
       'type': type,
@@ -100,33 +97,20 @@ class CropsRepo {
     return Crop.fromJson(res.data as Map<String, dynamic>);
   }
 
-
   Future<Paginated<Crop>> fetch({required int page, int limit = 20}) async {
-    final res = await _dio.get('/crops', queryParameters: {
-      'page': page,
-      'limit': limit,
-    });
-
+    final res = await _dio.get('/crops', queryParameters: {'page': page, 'limit': limit});
     final data = res.data;
 
     if (data is List) {
-      final items = data
-          .map((e) => Crop.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      final bool fullPage = items.length >= limit;
-      final syntheticTotal =
-      fullPage ? (page * limit + 1) : (page - 1) * limit + items.length;
-
+      final items = data.map((e) => Crop.fromJson(e as Map<String, dynamic>)).toList();
+      final fullPage = items.length >= limit;
+      final syntheticTotal = fullPage ? (page * limit + 1) : (page - 1) * limit + items.length;
       return Paginated<Crop>(items, page, limit, syntheticTotal);
     }
 
     if (data is Map<String, dynamic>) {
       final itemsJson = (data['items'] as List?) ?? const [];
-      final items = itemsJson
-          .map((e) => Crop.fromJson(e as Map<String, dynamic>))
-          .toList();
-
+      final items = itemsJson.map((e) => Crop.fromJson(e as Map<String, dynamic>)).toList();
       return Paginated<Crop>(
         items,
         (data['page'] as num?)?.toInt() ?? page,

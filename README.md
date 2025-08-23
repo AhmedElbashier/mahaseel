@@ -1,5 +1,8 @@
 # Mahaseel (محاصيل) 🌾
 
+[![Backend CI](https://github.com/<OWNER>/<REPO>/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/backend-ci.yml)
+[![Mobile CI](https://github.com/<OWNER>/<REPO>/actions/workflows/mobile-ci.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/mobile-ci.yml)
+
 **An MVP mobile marketplace connecting Sudanese farmers directly with buyers.**
 
 ---

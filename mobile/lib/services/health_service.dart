@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import '../core/http.dart';
+import '../core/http/http.dart';
 
 class HealthService {
   static Future<Object> isUp() async {

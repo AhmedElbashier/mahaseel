@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/crop.dart';
 import '../data/crops_repo.dart';
+import '../providers.dart';
 
-final cropsRepoProvider = Provider<CropsRepo>((ref) => CropsRepo());
+final cropsRepoProvider = Provider<CropsRepo>((ref) => CropsRepo(ref.read(dioProvider)));
 
 class CropsState {
   final List<Crop> items;

@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'logging_interceptor.dart';
 
 class ApiClient {
   static final ApiClient _i = ApiClient._();
@@ -10,15 +11,29 @@ class ApiClient {
 
   final _storage = const FlutterSecureStorage();
 
-  late final Dio dio = Dio(BaseOptions(
-    baseUrl: dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000',
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 20),
-  ));
+  /// We create Dio inside init() AFTER .env is loaded.
+  late final Dio dio;
 
-  /// Call once in main()
+  bool _initialized = false;
+
+  /// Call once in main() AFTER dotenv.load().
   void init() {
-    // Auth interceptor
+    if (_initialized) return;
+    _initialized = true;
+
+    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000';
+
+    dio = Dio(BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 20),
+      responseType: ResponseType.json,
+    ));
+
+    // 1) Add X-Request-ID for backend correlation
+    dio.interceptors.add(RequestIdInterceptor());
+
+    // 2) Auth header
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await _storage.read(key: 'jwt');
@@ -31,13 +46,13 @@ class ApiClient {
       },
     ));
 
-    // Logger AFTER auth so it prints the Authorization header
-    dio.interceptors.add(LogInterceptor(
-      request: true,
-      requestBody: true,
-      responseBody: true,
-      error: true,
+    // 3) PII-safe logging (debug/profile only)
+    dio.interceptors.add(PiiSafeLogInterceptor(
+      sampleRate: 1.0, // you can set 0.2 in profile if too chatty
     ));
+
+    // ⚠️ Remove the default Dio LogInterceptor; ours is safer.
+    // dio.interceptors.add(LogInterceptor(...));  // ← delete this
   }
 
   Future<void> saveToken(String token) async =>

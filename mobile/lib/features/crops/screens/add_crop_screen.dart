@@ -1,6 +1,8 @@
 // lib/features/crops/screens/add_crop_screen.dart
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +10,12 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../crops/data/location.dart'; // ⬅️ moved from data/ to models/
+import '../../../services/connectivity_service.dart';
+import '../../crops/data/location.dart';
 import '../../crops/providers.dart';
+import '../../../core/permissions/location_permission.dart';
+import '../../location/map_picker_screen.dart';
+import '../../../core/http/fastapi_errors.dart';
 
 class AddCropScreen extends ConsumerStatefulWidget {
   const AddCropScreen({super.key});
@@ -27,12 +33,15 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
   final _unit = TextEditingController(text: 'kg');
   final _notes = TextEditingController();
 
-  LocationData? _loc; // Day 16: replace with real map picker
+  LocationData? _loc;
   final _images = <File>[];
   final _picker = ImagePicker();
   bool _submitting = false;
 
   static const _draftKey = 'draft:add_crop_v1';
+
+  // Per-field error texts (422)
+  String? _nameErrorText, _typeErrorText, _qtyErrorText, _priceErrorText, _unitErrorText;
 
   @override
   void initState() {
@@ -65,7 +74,9 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
       _notes.text = j['notes'] ?? '';
       final loc = j['location'] as Map<String, dynamic>?;
       if (loc != null) _loc = LocationData.fromJson(loc);
-      setState(() {});
+      setState(() {
+        _nameErrorText = _typeErrorText = _qtyErrorText = _priceErrorText = _unitErrorText = null;
+      });
     } catch (_) {}
   }
 
@@ -79,6 +90,7 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
       'unit': _unit.text,
       'notes': _notes.text,
       'location': _loc?.toJson(),
+      // (Optional) you could also store image paths if you want
     };
     await sp.setString(_draftKey, jsonEncode(j));
   }
@@ -90,27 +102,42 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
       maxWidth: 1600,
     );
     if (x != null) {
-      setState(() => _images.add(File(x.path)));
+      setState(() {
+        _images.add(File(x.path)); // ✅ actually add the image
+        _nameErrorText = _typeErrorText = _qtyErrorText = _priceErrorText = _unitErrorText = null;
+      });
       _saveDraft();
     }
   }
 
-  void _fakePickLocation() {
-    // Day 14 placeholder; Day 16 will use maps & permissions
-    _loc = LocationData(
-      lat: 15.603,
-      lng: 32.532,
-      state: 'Khartoum',
-      locality: 'Bahri',
-      address: 'Market St.',
+  Future<void> _pickLocation() async {
+    final ok = await LocationPerms.ensure();
+    if (!ok) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('الرجاء السماح بالوصول إلى الموقع')),
+      );
+      return;
+    }
+
+    final picked = await Navigator.of(context).push<LocationData>(
+      MaterialPageRoute(builder: (_) => const MapPickerScreen()),
     );
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('تم تعيين الموقع التجريبي')));
-    _saveDraft();
-    setState(() {});
+    if (picked != null) {
+      setState(() => _loc = picked);
+      _saveDraft();
+    }
   }
 
   Future<void> _submit() async {
+    if (_submitting) return; // avoid double-tap
+    FocusScope.of(context).unfocus();
+
+    // clear old field errors
+    setState(() {
+      _nameErrorText = _typeErrorText = _qtyErrorText = _priceErrorText = _unitErrorText = null;
+    });
+
     if (!_formKey.currentState!.validate()) return;
     if (_loc == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -118,9 +145,38 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
       );
       return;
     }
+
     setState(() => _submitting = true);
 
+    final payload = {
+      'name': _name.text.trim(),
+      'type': _type.text.trim(),
+      'qty': double.tryParse(_qty.text) ?? 0,
+      'price': double.tryParse(_price.text) ?? 0,
+      'unit': _unit.text.trim(),
+      'location': {
+        'lat': _loc!.lat,
+        'lng': _loc!.lng,
+        'state': _loc!.state,
+        'locality': _loc!.locality,
+        'address': _loc!.address,
+      },
+      'notes': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+    };
+
     try {
+      final isOnline = await ConnectivityService().isOnline;
+      if (!isOnline) {
+        // queue for retry and notify
+        ref.read(retryQueueProvider).enqueueCreateCrop(payload);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا يوجد اتصال. سيتم الإرسال تلقائياً عند توفر الإنترنت')),
+        );
+        return;
+      }
+
+      // ✅ use typed values directly for createJson
       final repo = ref.read(cropsRepoProvider);
       final crop = await repo.createJson(
         name: _name.text.trim(),
@@ -131,7 +187,6 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
         location: _loc!,
         notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       );
-      ;
 
       final sp = await SharedPreferences.getInstance();
       await sp.remove(_draftKey);
@@ -140,15 +195,48 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم نشر المحصول بنجاح')),
       );
-      // ⬇️ Use GoRouter, consistent with your router setup
       context.go('/crops/${crop.id}');
     } catch (e) {
+      // 1) FastAPI 422 → show per-field errors
+      final fieldErrors = mapFastApi422(e);
+      if (fieldErrors.isNotEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _nameErrorText  = fieldErrors['name'];
+          _typeErrorText  = fieldErrors['type'];
+          _qtyErrorText   = fieldErrors['qty'];
+          _priceErrorText = fieldErrors['price'];
+          _unitErrorText  = fieldErrors['unit'];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تحقق من الحقول المطلوبة')),
+        );
+        return;
+      }
+
+      // 2) Network-ish → queue for retry
+      final isNetworkish = e is DioException &&
+          (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.sendTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.response == null);
+
+      if (isNetworkish) {
+        ref.read(retryQueueProvider).enqueueCreateCrop(payload);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم الحفظ وإضافته تلقائياً عند توفر الإنترنت')),
+        );
+        return;
+      }
+
+      // 3) Other errors → generic message
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('فشل الإرسال: $e')),
       );
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) setState(() => _submitting = false); // ✅ always re-enable
     }
   }
 
@@ -210,22 +298,31 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
 
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'اسم المحصول'),
-              validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+              decoration: InputDecoration(
+                labelText: 'اسم المحصول',
+                errorText: _nameErrorText,
+              ),
+              textInputAction: TextInputAction.next,
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
             ),
             TextFormField(
               controller: _type,
-              decoration: const InputDecoration(labelText: 'النوع'),
-              validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+              decoration: InputDecoration(
+                labelText: 'النوع',
+                errorText: _typeErrorText,
+              ),
+              textInputAction: TextInputAction.next,
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
             ),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _qty,
-                    decoration: const InputDecoration(labelText: 'الكمية'),
+                    decoration: InputDecoration(
+                      labelText: 'الكمية',
+                      errorText: _qtyErrorText,
+                    ),
                     keyboardType: numKeyboard,
                     inputFormatters: numFormatters,
                     validator: (v) {
@@ -240,8 +337,11 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _unit,
-                    decoration: const InputDecoration(
-                        labelText: 'الوحدة (مثال: kg، طن)'),
+                    decoration: InputDecoration(
+                      labelText: 'الوحدة (مثال: kg، طن)',
+                      errorText: _unitErrorText,
+                    ),
+                    textInputAction: TextInputAction.next,
                   ),
                 ),
               ],
@@ -251,7 +351,10 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _price,
-                    decoration: const InputDecoration(labelText: 'السعر'),
+                    decoration: InputDecoration(
+                      labelText: 'السعر',
+                      errorText: _priceErrorText,
+                    ),
                     keyboardType: numKeyboard,
                     inputFormatters: numFormatters,
                     validator: (v) {
@@ -269,8 +372,7 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
             TextFormField(
               controller: _notes,
               maxLines: 3,
-              decoration:
-              const InputDecoration(labelText: 'ملاحظات (اختياري)'),
+              decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)'),
             ),
             const SizedBox(height: 12),
 
@@ -284,7 +386,7 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
                 _loc?.address ?? 'lat=${_loc?.lat}, lng=${_loc?.lng}',
               ),
               trailing: OutlinedButton.icon(
-                onPressed: _fakePickLocation,
+                onPressed: _pickLocation,
                 icon: const Icon(Icons.location_on_outlined),
                 label: const Text('اختيار الموقع'),
               ),

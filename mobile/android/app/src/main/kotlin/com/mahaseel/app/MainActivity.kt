@@ -1,4 +1,4 @@
-package com.mahaseel.mahaseel
+package com.mahaseel.app
 
 import io.flutter.embedding.android.FlutterActivity
 

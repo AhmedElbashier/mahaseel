@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'app_config.dart';
+import '../app_config.dart';
 
 class Http {
   static final Dio dio =

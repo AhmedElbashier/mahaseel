@@ -1,6 +1,10 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends,Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from prometheus_fastapi_instrumentator import Instrumentator
+import json, logging, time, uuid
+from typing import Callable
+from starlette.middleware.base import BaseHTTPMiddleware
 
 import logging
 
@@ -10,6 +14,7 @@ import os
 from app.core.cors import add_cors
 from app.core.errors import add_error_handlers
 from app.core.ratelimit import add_rate_limiting
+from app.observability import RequestLogMiddleware
 
 
 from app.core.config import settings
@@ -38,7 +43,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.add_middleware(RequestLogMiddleware)
 
 @app.get("/_routes", tags=["system"])
 def list_routes():

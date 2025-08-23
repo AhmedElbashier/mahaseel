@@ -29,6 +29,11 @@
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>
+	<key>NSLocationWhenInUseUsageDescription</key>
+  <string>نحتاج للوصول إلى موقعك لعرض موقع الحقول القريبة.</string>
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>نحتاج للوصول إلى موقعك لعرض موقع الحقول القريبة.</string>
+
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
