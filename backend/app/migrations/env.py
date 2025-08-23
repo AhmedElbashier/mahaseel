@@ -13,6 +13,8 @@ config = context.config
 
 # Always set the URL from settings (use the normalized property!)
 config.set_main_option("sqlalchemy.url", settings.sqlalchemy_url)
+host = settings.sqlalchemy_url.split('@')[-1].split('/')[0]
+print("[alembic] Using DB host:", host)
 
 # Logging
 if config.config_file_name:

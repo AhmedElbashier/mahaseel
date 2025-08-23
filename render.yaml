@@ -23,11 +23,10 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: mahaseel-db-staging
-          property: postgresql+psycopg://mahaseel_db_staging_user:itguN6rTBgtWeWRlPUW4OQjQi0W5hZLI@dpg-d2ku8k6r433s73agu9dg-a.frankfurt-postgres.render.com:5432/mahaseel_db_staging?sslmode=require
+          property: externalConnectionString
       - key: SEED_TOKEN
           generateValue: true
 
 databases:
   - name: mahaseel-db-staging
-    region: frankfurt
     plan: free
