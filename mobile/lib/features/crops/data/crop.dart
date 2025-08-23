@@ -15,7 +15,7 @@ class Crop {
   final String? sellerName;   // ← مهم
   final String? sellerPhone;  // ← مهم
 
-  final String? mainImageUrl;
+  final String? imageUrl;
   final List<String> images;
 
   Crop({
@@ -30,7 +30,7 @@ class Crop {
     this.notes,
     this.sellerName,
     this.sellerPhone,
-    this.mainImageUrl,
+    this.imageUrl,
     this.images = const [],
   });
 
@@ -53,7 +53,7 @@ class Crop {
     final imgs = <String>[];
     final apiImages = j['images'];
     if (apiImages is List) imgs.addAll(apiImages.whereType<String>());
-    final main = j['main_image_url'] as String?;
+    final main = j['image_url'] as String?;
     if (main != null && main.isNotEmpty) imgs.insert(0, main);
 
     return Crop(
@@ -67,7 +67,7 @@ class Crop {
       sellerId: (j['seller_id'] as num).toInt(),
       sellerName: j['seller_name'] as String?,     // ← يقرأ snake_case
       sellerPhone: j['seller_phone'] as String?,   // ← يقرأ snake_case
-      mainImageUrl: main,
+      imageUrl: main,
       images: imgs,
       location: location,
     );

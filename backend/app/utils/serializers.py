@@ -39,5 +39,5 @@ def serialize_crop(crop: Crop | tuple) -> dict:
             "address": getattr(crop, "address", None),
         },
         "notes": getattr(crop, "notes", None),
-        "main_image_url": _media_url(main),
+        "image_url": _media_url(main),
     }

@@ -7,7 +7,7 @@ from typing import List, Optional
 from app.schemas.crop import CropCreate, CropOut
 from app.db.session import get_db
 from app.models import Crop
-from app.api.deps import get_current_user
+from app.api.deps import require_roles
 from app.utils.serializers import serialize_crop
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/crops", tags=["crops"])
 def create_crop(
     data: CropCreate,
     db: Session = Depends(get_db),
-    user = Depends(get_current_user)
+    user = Depends(require_roles("seller", "admin")),
 ):
     if not data.location:
         raise HTTPException(400, "location is required")

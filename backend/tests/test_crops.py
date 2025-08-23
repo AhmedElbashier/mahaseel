@@ -48,3 +48,13 @@ def test_crop_get(client: TestClient, auth_headers):
     data = fetched.json()
     assert data["id"] == crop_id
     assert data["name"] == "Tomatoes"
+
+
+def test_crop_create_requires_role(
+    client: TestClient, buyer_headers, admin_headers
+):
+    forbidden = client.post("/crops", json=_sample_crop(), headers=buyer_headers)
+    assert forbidden.status_code == 403
+
+    allowed = client.post("/crops", json=_sample_crop(), headers=admin_headers)
+    assert allowed.status_code == 201

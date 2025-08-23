@@ -159,7 +159,7 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
           final c = snap.data!;
           final gallery = c.images;
           final hasGallery = gallery.isNotEmpty;
-          final fallbackUrl = c.mainImageUrl;
+          final fallbackUrl = c.imageUrl;
           Widget galleryWidget;
           if (hasGallery) {
             galleryWidget = SizedBox(
