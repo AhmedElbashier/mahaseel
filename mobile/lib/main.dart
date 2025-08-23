@@ -26,7 +26,7 @@ Future<void> _initHive() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env.staging");
+  await dotenv.load(fileName: ".env");
   await _initHive();
   ApiClient().init();
   debugPrint('BASE_URL = ${AppConfig.apiBaseUrl}');
