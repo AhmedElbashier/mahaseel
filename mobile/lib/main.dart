@@ -15,6 +15,7 @@ import 'core/app_config.dart';
 import 'core/debug/riverpod_observer.dart';
 import 'routing/app_router.dart';
 import 'features/auth/state/auth_controller.dart';
+import 'features/settings/state/settings_controller.dart';
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
@@ -74,10 +75,12 @@ class MahaseelApp extends ConsumerWidget {
       seedColor: seed,
       brightness: Brightness.dark,
     );
+    final locale = ref.watch(localeProvider);
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Mahaseel',
+      themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: lightScheme,
@@ -89,9 +92,14 @@ class MahaseelApp extends ConsumerWidget {
         fontFamily: 'Cairo',
       ),
       themeMode: themeMode,
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        fontFamily: 'Roboto',
+        colorSchemeSeed: const Color(0xFF2E7D32),
+        brightness: Brightness.dark,
+      ),
       routerConfig: router,
-
-      locale: const Locale('ar'),
+      locale: locale,
       supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

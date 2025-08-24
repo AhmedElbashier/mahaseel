@@ -1,5 +1,5 @@
 // lib/routing/app_router.dart
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,33 +31,78 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
     routes: [
       // ---------- Auth-only routes ----------
-      GoRoute(path: '/',      builder: (_, __) => const WelcomeScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginPhoneScreen()),
+      GoRoute(
+        path: '/',
+        pageBuilder: (ctx, st) => CustomTransitionPage(
+          key: st.pageKey,
+          child: const WelcomeScreen(),
+          transitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
+      GoRoute(
+        path: '/login',
+        pageBuilder: (ctx, st) => CustomTransitionPage(
+          key: st.pageKey,
+          child: const LoginPhoneScreen(),
+          transitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
       GoRoute(
         path: '/otp',
-        builder: (_, st) => OtpScreen(
-          phone: st.uri.queryParameters['phone'] ?? '',
+        pageBuilder: (ctx, st) => CustomTransitionPage(
+          key: st.pageKey,
+          child: OtpScreen(
+            phone: st.uri.queryParameters['phone'] ?? '',
+          ),
+          transitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
         ),
       ),
 
-      // ---------- App shell (drawer + app bar) ----------
+      // ---------- App shell (bottom navigation + app bar) ----------
       ShellRoute(
         builder: (context, state, child) {
           final here = GoRouterState.of(context).uri.toString();
           String title = 'محاصيل'; // default
 
           if (here.startsWith('/crops/add')) title = 'إضافة محصول';
-          if (here.startsWith('/crops/'))    title = 'تفاصيل المحصول';
-          if (here.startsWith('/support'))    title = 'الدعم الفني';
-          if (here.startsWith('/settings'))   title = 'الإعدادات';
+          if (here.startsWith('/crops/')) title = 'تفاصيل المحصول';
+          if (here.startsWith('/support')) title = 'الدعم الفني';
+          if (here.startsWith('/settings')) title = 'الإعدادات';
 
-          final bool onHome =
-              here == '/home' || here == '/' || here.startsWith('/crops?');
+          int index = 0;
+          if (here.startsWith('/crops/add')) index = 1;
+          else if (here.startsWith('/support')) index = 2;
+          else if (here.startsWith('/settings')) index = 3;
+          else index = 0; // home & crops routes
+
+          void onNav(int idx) {
+            switch (idx) {
+              case 0:
+                context.go('/home');
+                break;
+              case 1:
+                context.go('/crops/add');
+                break;
+              case 2:
+                context.go('/support');
+                break;
+              case 3:
+                context.go('/settings');
+                break;
+            }
+          }
 
           return HomeShell(
             title: title,
             child: child,
-            onAdd: onHome ? () => context.go('/crops/add') : null,
+            currentIndex: index,
+            onTabSelected: onNav,
           );
         },
         routes: [
