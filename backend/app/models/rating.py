@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, Index, text
 from app.db.base import Base
 
 class Rating(Base):
@@ -12,4 +12,12 @@ class Rating(Base):
 
     __table_args__ = (
         UniqueConstraint("buyer_id", "seller_id", "crop_id", name="uix_rating"),
+        Index(
+            "uix_rating_seller",
+            "buyer_id",
+            "seller_id",
+            unique=True,
+            postgresql_where=text("crop_id IS NULL"),
+            sqlite_where=text("crop_id IS NULL"),
+        ),
     )
