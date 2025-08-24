@@ -12,6 +12,8 @@ from app.utils.serializers import serialize_crop
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.core.ratelimit import limiter
+from backend.app.models.media import Media
+from backend.app.models.user import User
 
 router = APIRouter(prefix="/crops", tags=["crops"])
 
@@ -54,16 +56,32 @@ def list_crops(
     request: Request,
     db: Session = Depends(get_db),
     state: Optional[str] = Query(default=None),
+    type_: Optional[str] = Query(default=None, alias="type"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    q = db.query(Crop).options(
-        selectinload(Crop.media),
-        joinedload(Crop.seller),  # ok even if seller relationship not populated yet
+    # Normalize input the SAME way we normalized at write-time
+    state_norm = state.strip().title() if state else None
+
+    q = (
+        db.query(Crop)
+        .options(
+            joinedload(Crop.seller).load_only("id", "name", "phone"),
+            selectinload(Crop.media).load_only("id", "url", "is_main"),
+        )
     )
-    if state:
-        q = q.filter(func.lower(Crop.state) == state.lower())
-    rows = q.order_by(Crop.id.desc()).offset(offset).limit(limit).all()
+
+    if state_norm:
+        q = q.filter(Crop.state == state_norm)
+    if type_:
+        q = q.filter(Crop.type == type_)
+
+    rows = (
+        q.order_by(Crop.created_at.desc(), Crop.id.desc())  # created_at for index, id as tiebreaker
+         .offset(offset)
+         .limit(limit)
+         .all()
+    )
     return [serialize_crop(c) for c in rows]
 
 
