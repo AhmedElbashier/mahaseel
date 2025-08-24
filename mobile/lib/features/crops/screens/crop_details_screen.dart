@@ -13,7 +13,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../orders/data/orders_repo.dart';
-import '../../ratings/state/ratings_controller.dart';
 import '../../ratings/state/providers.dart';   // ratings providers (uses ApiClient().dio under the hood)
 import '../models/crop.dart';
 import '../data/location.dart';

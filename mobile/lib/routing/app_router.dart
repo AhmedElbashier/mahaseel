@@ -14,9 +14,11 @@ import '../features/home/home_shell.dart';
 import '../features/crops/screens/crop_list_screen.dart';
 import '../features/crops/screens/add_crop_screen.dart';
 import '../features/crops/screens/crop_details_screen.dart';
+import '../features/location/map_picker_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/support/screens/support_screen.dart';
-
+import '../features/notifications/screens/notifications_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 final isAuthenticatedProvider = Provider<bool>((ref) {
   final authState = ref.watch(authControllerProvider);
   return authState.isAuthenticated;
@@ -74,11 +76,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           if (here.startsWith('/crops/')) title = 'تفاصيل المحصول';
           if (here.startsWith('/support')) title = 'الدعم الفني';
           if (here.startsWith('/settings')) title = 'الإعدادات';
+          if (here.startsWith('/notifications')) title = 'الإشعارات';
+          if (here.startsWith('/profile')) title = 'الملف الشخصي';
+
 
           int index = 0;
           if (here.startsWith('/crops/add')) index = 1;
           else if (here.startsWith('/support')) index = 2;
           else if (here.startsWith('/settings')) index = 3;
+          else if (here.startsWith('/notifications')) index = 4;
+          else if (here.startsWith('/profile')) index = 5;
           else index = 0; // home & crops routes
 
           void onNav(int idx) {
@@ -95,6 +102,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               case 3:
                 context.go('/settings');
                 break;
+              case 4:
+                context.go('/notifications');
+                break;
+              case 5:
+                context.go('/profile');
             }
           }
 
@@ -135,9 +147,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const SupportScreen(),
           ),
           GoRoute(
+            path: '/notifications',
+            name: 'notifications',
+            builder: (context, state) => const NotificationsScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            name: 'profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
             path: '/settings',
             name: 'settings',
             builder: (_, __) => const SettingsScreen(),
+          ),
+          GoRoute(
+            path: '/map-picker',
+            name: 'map_picker',
+            builder: (context, state) => const MapPickerScreen(),
           ),
         ],
       ),
@@ -153,7 +180,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isShellRoute = here.startsWith('/home') ||
           here.startsWith('/crops') ||
           here.startsWith('/support') ||
-          here.startsWith('/settings');
+          here.startsWith('/settings') ||
+          here.startsWith('/notifications') ||
+          here.startsWith('/profile');
+
 
       if (!isAuthed && isShellRoute) {
         return '/login';
