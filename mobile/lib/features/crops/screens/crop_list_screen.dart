@@ -12,17 +12,35 @@ class CropListScreen extends ConsumerStatefulWidget {
   ConsumerState<CropListScreen> createState() => _CropListScreenState();
 }
 
-class _CropListScreenState extends ConsumerState<CropListScreen> {
+class _CropListScreenState extends ConsumerState<CropListScreen>
+    with AutomaticKeepAliveClientMixin {
   final _controller = ScrollController();
+  bool _isFetching = false;
+  DateTime _lastFetch = DateTime.fromMillisecondsSinceEpoch(0);
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _controller.addListener(() {
-      if (_controller.position.pixels >= _controller.position.maxScrollExtent - 200) {
-        ref.read(cropsControllerProvider.notifier).loadNextPage();
-      }
-    });
+    _controller.addListener(_maybeLoadMore);
+  }
+
+  void _maybeLoadMore() {
+    final state = ref.read(cropsControllerProvider);
+    if (_isFetching || state.loadingMore) return;
+
+    final pos = _controller.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) {
+      final now = DateTime.now();
+      if (now.difference(_lastFetch).inMilliseconds < 200) return; // debounce
+      _lastFetch = now;
+      _isFetching = true;
+      ref.read(cropsControllerProvider.notifier).loadNextPage().whenComplete(() {
+        _isFetching = false;
+      });
+    }
   }
 
   @override
@@ -33,44 +51,53 @@ class _CropListScreenState extends ConsumerState<CropListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(cropsControllerProvider);
+    super.build(context); // keep-alive
 
-    return Scaffold(  appBar: AppBar(
-      title: const Text('المحاصيل'),
-      actions: [
-        IconButton(
-          onPressed: () => context.push('/crops/add'),
-          icon: const Icon(Icons.add),
-          tooltip: 'إضافة محصول',
-        ),
-      ],
-    ),
+    final items       = ref.watch(cropsControllerProvider.select((s) => s.items));
+    final loading     = ref.watch(cropsControllerProvider.select((s) => s.loading));
+    final loadingMore = ref.watch(cropsControllerProvider.select((s) => s.loadingMore));
+    final error       = ref.watch(cropsControllerProvider.select((s) => s.error));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('المحاصيل'),
+        actions: [
+          IconButton(
+            onPressed: () => context.push('/crops/add'),
+            icon: const Icon(Icons.add),
+            tooltip: 'إضافة محصول',
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(cropsControllerProvider.notifier).refresh(),
-        child: Builder(
-
+          child: Builder(
           builder: (context) {
-
-            if (state.loading) {
-              return ListView.separated(
+            if (loading && items.isEmpty) {
+              return ListView.builder(
+                key: const PageStorageKey('crops-list'),
                 padding: const EdgeInsets.all(12),
                 itemCount: 6,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, __) => const CropSkeleton(),
+                itemExtent: 120, // match CropCard fixed height
+                itemBuilder: (_, __) => const CropSkeleton(), // make skeleton 120px tall
               );
             }
 
-            if (state.error != null && state.items.isEmpty) {
+            if (error != null && items.isEmpty) {
               return ListView(
+                padding: const EdgeInsets.all(24),
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Center(child: Text('حدث خطأ في جلب البيانات.\n${state.error!}',
-                        textAlign: TextAlign.center)),
+                  Center(
+                    child: Text(
+                      'حدث خطأ في جلب البيانات.\n$error',
+                      textAlign: TextAlign.center,
+                    ),
                   ),
+                  const SizedBox(height: 16),
                   Center(
                     child: FilledButton(
-                      onPressed: () => ref.read(cropsControllerProvider.notifier).refresh(),
+                      onPressed: () =>
+                          ref.read(cropsControllerProvider.notifier).refresh(),
                       child: const Text('إعادة المحاولة'),
                     ),
                   ),
@@ -78,8 +105,9 @@ class _CropListScreenState extends ConsumerState<CropListScreen> {
               );
             }
 
-            if (state.items.isEmpty) {
+            if (items.isEmpty) {
               return ListView(
+                padding: const EdgeInsets.all(24),
                 children: const [
                   SizedBox(height: 60),
                   Icon(Icons.inbox, size: 64),
@@ -89,24 +117,22 @@ class _CropListScreenState extends ConsumerState<CropListScreen> {
               );
             }
 
-            return ListView.separated(
+            return ListView.builder(
+              key: const PageStorageKey('crops-list'),
               controller: _controller,
               padding: const EdgeInsets.all(12),
-              itemCount: state.items.length + (state.loadingMore ? 1 : 0),
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemCount: items.length + (loadingMore ? 1 : 0),
+              itemExtent: 120,   // BIG perf win with fixed-height CropCard
+              cacheExtent: 800,  // prefetch ~1–2 screens
               itemBuilder: (ctx, i) {
-                if (i >= state.items.length) {
-                  // footer loader
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
+                if (i >= items.length) {
+                  // footer loader (single return)
+                  return const Center(child: CircularProgressIndicator());
                 }
-                final crop = state.items[i];
+                final crop = items[i];
                 return CropCard(
                   crop: crop,
-                    onTap: () => context.push('/crops/${crop.id}'),
-                    // context.go('/crop/${crop.id}');
+                  onTap: () => context.push('/crops/${crop.id}'),
                 );
               },
             );

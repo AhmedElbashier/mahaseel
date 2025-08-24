@@ -16,6 +16,7 @@ import '../../crops/providers.dart';
 import '../../../core/permissions/location_permission.dart';
 import '../../location/map_picker_screen.dart';
 import '../../../core/http/fastapi_errors.dart';
+import '../../../services/uploader.dart';
 
 class AddCropScreen extends ConsumerStatefulWidget {
   const AddCropScreen({super.key});
@@ -32,6 +33,7 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
   final _price = TextEditingController();
   final _unit = TextEditingController(text: 'kg');
   final _notes = TextEditingController();
+  double? _uploadProgress; // null = idle, 0..1 while uploading
 
   LocationData? _loc;
   final _images = <File>[];
@@ -187,6 +189,31 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
         location: _loc!,
         notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       );
+      final uploader = Uploader();
+      for (var i = 0; i < _images.length; i++) {
+        final f = _images[i];
+        setState(() => _uploadProgress = 0);
+        try {
+          await uploader.uploadImageForCrop(
+            f.path,
+            crop.id,
+            isMain: i == 0, // first photo becomes the thumbnail
+            onProgress: (sent, total) {
+              if (!mounted) return;
+              if (total > 0) setState(() => _uploadProgress = sent / total);
+            },
+          );
+        } catch (e) {
+          debugPrint('Image upload failed: $e');
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تعذّر رفع صورة، لكن تم نشر المحصول')),
+          );
+        } finally {
+          if (mounted) setState(() => _uploadProgress = null);
+        }
+      }
+
 
       final sp = await SharedPreferences.getInstance();
       await sp.remove(_draftKey);
@@ -403,6 +430,10 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen> {
               )
                   : const Text('نشر المحصول'),
             ),
+            if (_uploadProgress != null) ...[
+              const SizedBox(height: 8),
+              LinearProgressIndicator(value: _uploadProgress),
+            ],
           ],
         ),
       ),

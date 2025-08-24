@@ -33,7 +33,7 @@ log = logging.getLogger("mahaseel")
 app = FastAPI(
     title=settings.app_name, version="0.1.0", docs_url="/docs", redoc_url="/redoc"
 )
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "../uploads")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/uploads")  
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
 

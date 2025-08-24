@@ -19,21 +19,21 @@ class Crop(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), index=True)
-    type: Mapped[str] = mapped_column(String(80))
+    type: Mapped[str] = mapped_column(String(80),index=True)
     qty: Mapped[float] = mapped_column(Float)
-    price: Mapped[float] = mapped_column(Float)
+    price: Mapped[float] = mapped_column(Float,index=True)
     unit: Mapped[str] = mapped_column(String(16), default="kg")
 
     # location (nullable)
     lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     lng: Mapped[float | None] = mapped_column(Float, nullable=True)
-    state: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    state: Mapped[str | None] = mapped_column(String(80), nullable=True,index=True)
     locality: Mapped[str | None] = mapped_column(String(80), nullable=True)
     address: Mapped[str | None] = mapped_column(String(160), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        DateTime(timezone=True), server_default=func.now(),index=True
     )
 
     seller_id: Mapped[int] = mapped_column(

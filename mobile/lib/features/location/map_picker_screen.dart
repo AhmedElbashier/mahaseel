@@ -12,6 +12,7 @@ class MapPickerScreen extends StatefulWidget {
 
 class _MapPickerScreenState extends State<MapPickerScreen> {
   LatLng? _picked;
+  // ignore: unused_field
   GoogleMapController? _ctrl;
 
   @override
@@ -19,7 +20,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     final start = widget.start ?? const LatLng(15.603, 32.532); // Khartoum-ish
     final markers = <Marker>{
       if (_picked != null)
-        Marker(markerId: const MarkerId('picked'), position: _picked!)
+        Marker(markerId: const MarkerId('picked'), position: _picked!),
     };
 
     return Scaffold(
@@ -36,13 +37,13 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
         onPressed: _picked == null
             ? null
             : () {
-          final loc = LocationData(
-            lat: _picked!.latitude,
-            lng: _picked!.longitude,
-            // Optional: fill state/locality/address after reverse geocoding later
-          );
-          Navigator.of(context).pop(loc);
-        },
+                final loc = LocationData(
+                  lat: _picked!.latitude,
+                  lng: _picked!.longitude,
+                  // Optional: fill state/locality/address after reverse geocoding later
+                );
+                Navigator.of(context).pop(loc);
+              },
         label: const Text('تأكيد الموقع'),
         icon: const Icon(Icons.check),
       ),

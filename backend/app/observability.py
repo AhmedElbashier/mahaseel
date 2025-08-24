@@ -1,44 +1,49 @@
-import json, logging, time, uuid
-from typing import Callable
-from fastapi import FastAPI, Request, Response
+import json
+import logging
+import time
+from typing import Optional
+
+from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger("mahaseel")
+# Configure once in your main; safe here if you don't configure elsewhere.
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
-def _redact(qp: dict) -> dict:
-    # never log sensitive fields
-    redacted = dict(qp or {})
-    for k in list(redacted.keys()):
-        if k.lower() in {"password","token","otp","phone"}:
-            redacted[k] = "***"
-    return redacted
+SENSITIVE_KEYS = {"password", "token", "otp", "phone"}
+
+def _redact_qp(qp: dict) -> dict:
+    out = dict(qp or {})
+    for k in list(out.keys()):
+        if k.lower() in SENSITIVE_KEYS:
+            out[k] = "***"
+    return out
 
 class RequestLogMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable):
+    async def dispatch(self, request: Request, call_next):
         start = time.perf_counter()
-        req_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-
-        # proceed
-        response: Response
+        response: Optional[Response] = None
+        status: int = 0
         try:
             response = await call_next(request)
+            status = getattr(response, "status_code", 200)
+            return response
+        except Exception:
+            status = 500
+            logger.exception("unhandled exception while handling request")
+            raise
         finally:
-            dur_ms = round((time.perf_counter() - start) * 1000, 2)
-            entry = {
-                "request_id": req_id,
+            duration_ms = (time.perf_counter() - start) * 1000.0
+            log = {
+                "request_id": request.headers.get("X-Request-ID"),
                 "method": request.method,
                 "path": request.url.path,
-                "status": getattr(response, "status_code", None),
-                "duration_ms": dur_ms,
-                "query": _redact(dict(request.query_params)),
+                "status": status,
+                "duration_ms": round(duration_ms, 2),
+                "query": _redact_qp(dict(request.query_params)),
             }
-            logger.info(json.dumps(entry))
+            logger.info(json.dumps(log, ensure_ascii=False))
 
-        # expose the id to clients
-        if response is not None:
-            response.headers["X-Request-ID"] = req_id
-        return response
 
-app = FastAPI()
-app.add_middleware(RequestLogMiddleware)
+#app = FastAPI()
+#app.add_middleware(RequestLogMiddleware)

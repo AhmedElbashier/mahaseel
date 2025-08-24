@@ -34,14 +34,14 @@ services:
       # only add environment: for values that must differ from .env
       environment:
         DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql+psycopg://mahaseel:mahaseel@db:5432/mahaseel}
-
+        UPLOAD_DIR: /app/uploads
       depends_on:
         db:
           condition: service_healthy
       ports:
         - "8000:8000"
       volumes:
-        - ../backend/app/uploads:/app/app/uploads
+        - ../backend/uploads:/app/uploads
       healthcheck:
         test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz || exit 1"]
         interval: 15s

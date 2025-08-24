@@ -10,6 +10,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +24,7 @@ import '../providers.dart';
 
 class CropDetailsScreen extends ConsumerStatefulWidget {
   final int id;
+
   const CropDetailsScreen({super.key, required this.id});
 
   @override
@@ -31,6 +33,7 @@ class CropDetailsScreen extends ConsumerStatefulWidget {
 
 class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
   late Future<Crop> _future;
+
   // Whether location permission has been granted. Used to enable myLocation on the map.
   bool _locationGranted = false;
 
@@ -146,7 +149,13 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('تفاصيل المحصول')),
+      appBar: AppBar(
+        title: const Text('تفاصيل المحصول'),
+        leading: BackButton(
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/crops'),
+        ),
+      ),
       body: FutureBuilder<Crop>(
         future: _future,
         builder: (context, snap) {

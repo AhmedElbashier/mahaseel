@@ -1,24 +1,45 @@
 # app/utils/serializers.py
 from decimal import Decimal
-from typing import Any
+from typing import Any, Iterable, Optional
+from fastapi import Request
+
 from app.models.crop import Crop
 
 def _to_float(x: Any):
     return float(x) if isinstance(x, Decimal) else x
 
-def _media_url(m) -> str | None:
+def abs_url(request: Optional[Request], path: str) -> str:
+    if not request:
+        return path
+    base = str(request.base_url).rstrip("/")
+    return f"{base}{path if path.startswith('/') else '/' + path}"
+
+def _media_url_rel(m) -> Optional[str]:
     if getattr(m, "url", None):
         return m.url
     if getattr(m, "path", None):
         return f"/static/{m.path}"
     return None
 
-def serialize_crop(crop: Crop | tuple) -> dict:
+def _media_url_abs(request: Optional[Request], m) -> Optional[str]:
+    rel = _media_url_rel(m)
+    return abs_url(request, rel) if rel else None
+
+def _images_array(request: Optional[Request], media_list: Iterable) -> list[str]:
+    out: list[str] = []
+    for m in media_list:
+        u = _media_url_abs(request, m)
+        if u:
+            out.append(u)
+    return out
+
+def serialize_crop(crop: Crop | tuple, request: Optional[Request] = None) -> dict:
     if isinstance(crop, tuple):
         crop = crop[0]
 
     media_list = getattr(crop, "media", None) or []
     main = next((m for m in media_list if getattr(m, "is_main", False)), None)
+    images = _images_array(request, media_list)   # <-- add this
 
     return {
         "id": crop.id,
@@ -28,7 +49,6 @@ def serialize_crop(crop: Crop | tuple) -> dict:
         "price": _to_float(crop.price),
         "unit": crop.unit,
         "seller_id": crop.seller_id,
-        # Optional (only if you have seller relation/columns):
         "seller_name": getattr(getattr(crop, "seller", None), "name", None),
         "seller_phone": getattr(getattr(crop, "seller", None), "phone", None),
         "location": {
@@ -39,5 +59,6 @@ def serialize_crop(crop: Crop | tuple) -> dict:
             "address": getattr(crop, "address", None),
         },
         "notes": getattr(crop, "notes", None),
-        "image_url": _media_url(main),
+        "image_url": _media_url_abs(request, main) if main else None,
+        "images": images,                           # <-- now populated
     }

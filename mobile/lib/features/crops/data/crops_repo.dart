@@ -2,7 +2,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 
-import '../../../services/api_client.dart';
 import './crop.dart';
 import './location.dart';
 
@@ -24,9 +23,12 @@ class CropsRepo {
     final crop = Crop.fromJson(res.data as Map<String, dynamic>);
     // DEBUG
     // ignore: avoid_print
-    print('repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}');
+    print(
+      'repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}',
+    );
     return crop;
   }
+
   Future<Crop> createJson({
     required String name,
     required String type,
@@ -36,23 +38,27 @@ class CropsRepo {
     required LocationData location,
     String? notes,
   }) async {
-    final res = await _dio.post('/crops', data: {
-      'name': name,
-      'type': type,
-      'qty': qty,
-      'price': price,
-      'unit': unit,
-      'location': {
-        'lat': location.lat,
-        'lng': location.lng,
-        'state': location.state,
-        'locality': location.locality,
-        'address': location.address,
+    final res = await _dio.post(
+      '/crops',
+      data: {
+        'name': name,
+        'type': type,
+        'qty': qty,
+        'price': price,
+        'unit': unit,
+        'location': {
+          'lat': location.lat,
+          'lng': location.lng,
+          'state': location.state,
+          'locality': location.locality,
+          'address': location.address,
+        },
+        'notes': notes,
       },
-      'notes': notes,
-    });
+    );
     return Crop.fromJson(res.data as Map<String, dynamic>);
   }
+
   Future<Crop> create({
     required String name,
     required String type,
@@ -93,7 +99,9 @@ class CropsRepo {
         for (final f in images)
           await MultipartFile.fromFile(
             f.path,
-            filename: f.uri.pathSegments.isNotEmpty ? f.uri.pathSegments.last : 'image.jpg',
+            filename: f.uri.pathSegments.isNotEmpty
+                ? f.uri.pathSegments.last
+                : 'image.jpg',
           ),
       ],
     });
@@ -101,12 +109,11 @@ class CropsRepo {
     return Crop.fromJson(res.data as Map<String, dynamic>);
   }
 
-
   Future<Paginated<Crop>> fetch({required int page, int limit = 20}) async {
-    final res = await _dio.get('/crops', queryParameters: {
-      'page': page,
-      'limit': limit,
-    });
+    final res = await _dio.get(
+      '/crops',
+      queryParameters: {'page': page, 'limit': limit},
+    );
 
     final data = res.data;
 
@@ -116,8 +123,9 @@ class CropsRepo {
           .toList();
 
       final bool fullPage = items.length >= limit;
-      final syntheticTotal =
-      fullPage ? (page * limit + 1) : (page - 1) * limit + items.length;
+      final syntheticTotal = fullPage
+          ? (page * limit + 1)
+          : (page - 1) * limit + items.length;
 
       return Paginated<Crop>(items, page, limit, syntheticTotal);
     }

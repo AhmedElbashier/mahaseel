@@ -1,5 +1,5 @@
 # app/routers/media.py
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.media import MediaOut
@@ -17,7 +17,7 @@ from app.core.ratelimit import limiter
 router = APIRouter(prefix="/media", tags=["media"])
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploads")  # same place you mounted
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/uploads")  
 MAX_BYTES = 10 * 1024 * 1024  # 10MB max upload
 
 
@@ -25,10 +25,11 @@ MAX_BYTES = 10 * 1024 * 1024  # 10MB max upload
 @router.post("/upload", response_model=MediaOut)
 async def upload_media(
     request: Request,
-    crop_id: int,
-    is_main: bool = False,
+    crop_id: int = Form(...),         
+    is_main: bool = Form(False),       
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+
 ):
     # 1) Basic validations
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -39,7 +40,8 @@ async def upload_media(
         raise HTTPException(413, "Image too large (max 10MB)")
 
     # 2) Ensure crop exists
-    crop = db.query(Crop).get(crop_id)
+    crop = db.get(Crop, crop_id)
+
     if not crop:
         raise HTTPException(404, "Crop not found")
 

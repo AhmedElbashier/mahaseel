@@ -1,4 +1,5 @@
 // lib/features/crops/data/crop.dart
+import '../../../core/http/url.dart';
 import 'location.dart';
 
 class Crop {
@@ -12,8 +13,8 @@ class Crop {
   final String? notes;
 
   final int sellerId;
-  final String? sellerName;   // ← مهم
-  final String? sellerPhone;  // ← مهم
+  final String? sellerName;
+  final String? sellerPhone;
 
   final String? imageUrl;
   final List<String> images;
@@ -42,6 +43,8 @@ class Crop {
 
   factory Crop.fromJson(Map<String, dynamic> j) {
     final loc = (j['location'] as Map<String, dynamic>?) ?? const {};
+    String? main;
+    final gallery = <String>[];
     final location = LocationData(
       lat: _toDouble(loc['lat'] ?? j['lat']),
       lng: _toDouble(loc['lng'] ?? j['lng']),
@@ -50,11 +53,35 @@ class Crop {
       address: (loc['address'] ?? j['address']) as String?,
     );
 
-    final imgs = <String>[];
-    final apiImages = j['images'];
-    if (apiImages is List) imgs.addAll(apiImages.whereType<String>());
-    final main = j['image_url'] as String?;
-    if (main != null && main.isNotEmpty) imgs.insert(0, main);
+    // shape A: image_url + images (array of strings)
+    if (j['image_url'] != null && j['image_url'] is String) {
+      main = ensureAbsoluteUrl(j['image_url'] as String);
+    }
+    if (j['images'] is List) {
+      for (final e in (j['images'] as List)) {
+        if (e is String) gallery.add(ensureAbsoluteUrl(e));
+        else if (e is Map && e['url'] is String) gallery.add(ensureAbsoluteUrl(e['url']));
+      }
+    }
+
+    // shape B: media: [{url, is_main}, ...]
+    if (j['media'] is List) {
+      final media = (j['media'] as List).whereType<Map>();
+      // pick main first if exists
+      final mainItem = media.firstWhere(
+            (m) => (m['is_main'] == true),
+        orElse: () => {},
+      );
+      if (main == null && mainItem.isNotEmpty && mainItem['url'] is String) {
+        main = ensureAbsoluteUrl(mainItem['url']);
+      }
+      for (final m in media) {
+        if (m['url'] is String) gallery.add(ensureAbsoluteUrl(m['url']));
+      }
+    }
+
+    // fallback: if main is still null, use first gallery item
+    main ??= (gallery.isNotEmpty ? gallery.first : null);
 
     return Crop(
       id: (j['id'] as num).toInt(),
@@ -68,7 +95,7 @@ class Crop {
       sellerName: j['seller_name'] as String?,     // ← يقرأ snake_case
       sellerPhone: j['seller_phone'] as String?,   // ← يقرأ snake_case
       imageUrl: main,
-      images: imgs,
+      images: gallery,
       location: location,
     );
   }
