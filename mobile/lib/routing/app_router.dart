@@ -1,5 +1,5 @@
 // lib/routing/app_router.dart
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,12 +31,36 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
     routes: [
       // ---------- Auth-only routes ----------
-      GoRoute(path: '/',      builder: (_, __) => const WelcomeScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginPhoneScreen()),
+      GoRoute(
+        path: '/',
+        pageBuilder: (ctx, st) => CustomTransitionPage(
+          key: st.pageKey,
+          child: const WelcomeScreen(),
+          transitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
+      GoRoute(
+        path: '/login',
+        pageBuilder: (ctx, st) => CustomTransitionPage(
+          key: st.pageKey,
+          child: const LoginPhoneScreen(),
+          transitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
       GoRoute(
         path: '/otp',
-        builder: (_, st) => OtpScreen(
-          phone: st.uri.queryParameters['phone'] ?? '',
+        pageBuilder: (ctx, st) => CustomTransitionPage(
+          key: st.pageKey,
+          child: OtpScreen(
+            phone: st.uri.queryParameters['phone'] ?? '',
+          ),
+          transitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
         ),
       ),
 
