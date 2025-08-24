@@ -54,7 +54,7 @@ class RatingsController extends StateNotifier<RatingsState> {
       debugPrint('✅ summary avg=${summary.avg} count=${summary.count}');
     } catch (e, st) {
       debugPrint('❌ loadSummary error: $e\n$st');
-      state = state.copyWith(error: _toArabicError(e), loading: false);
+      state = state.copyWith(summary: null, error: _toArabicError(e), loading: false);
       return;
     }
     state = state.copyWith(loading: false);
@@ -104,6 +104,9 @@ class RatingsController extends StateNotifier<RatingsState> {
     if (msg.contains('HTTP_403')) return 'غير مسموح لك بهذه العملية.';
     if (msg.contains('HTTP_404')) return 'غير موجود (404).';
     if (msg.contains('HTTP_422')) return 'قيمة التقييم غير صحيحة.';
+    if (msg.contains('HTTP_500')) return 'خطأ في الخادم (500).';
+    if (msg.contains('SUMMARY_HTTP_')) return 'تعذّر تحميل التقييم.';
+    if (msg.contains('SUMMARY_PARSE_ERROR')) return 'تعذّر قراءة بيانات التقييم.';
     if (msg.contains('REQUEST_FAILED')) return 'تعذّر الوصول للخادم.';
     final clean = msg.replaceFirst('Exception: ', '');
     return clean.isNotEmpty ? clean : 'تعذّر إرسال التقييم.';
