@@ -16,6 +16,8 @@ import 'core/debug/riverpod_observer.dart';
 import 'routing/app_router.dart';
 import 'features/auth/state/auth_controller.dart';
 
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
+
 Future<void> _initHive() async {
   final dir = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(dir.path);
@@ -64,16 +66,29 @@ class MahaseelApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
+    final themeMode = ref.watch(themeModeProvider);
+
+    const seed = Color(0xFF2E7D32);
+    final lightScheme = ColorScheme.fromSeed(seedColor: seed);
+    final darkScheme = ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: Brightness.dark,
+    );
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Mahaseel',
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: 'Roboto',
-        colorSchemeSeed: const Color(0xFF2E7D32),
-        brightness: Brightness.light,
+        colorScheme: lightScheme,
+        fontFamily: 'Cairo',
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: darkScheme,
+        fontFamily: 'Cairo',
+      ),
+      themeMode: themeMode,
       routerConfig: router,
 
       locale: const Locale('ar'),
