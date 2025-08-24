@@ -18,6 +18,7 @@ class Crop {
 
   final String? imageUrl;
   final List<String> images;
+  final bool isNew;
 
   Crop({
     required this.id,
@@ -33,6 +34,7 @@ class Crop {
     this.sellerPhone,
     this.imageUrl,
     this.images = const [],
+    this.isNew = false,
   });
 
   static double _toDouble(dynamic v, [double fb = 0.0]) {
@@ -97,6 +99,7 @@ class Crop {
       imageUrl: main,
       images: gallery,
       location: location,
+      isNew: j['is_new'] == true || j['isNew'] == true,
     );
   }
 
@@ -118,5 +121,6 @@ class Crop {
         'notes': notes,
         'image_url': imageUrl,
         'images': images,
+        'is_new': isNew,
       };
 }
