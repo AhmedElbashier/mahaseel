@@ -15,6 +15,8 @@ class ApiClient {
   late final Dio dio;
 
   bool _initialized = false;
+  /// Callback triggered when the backend returns 401/403.
+  Future<void> Function()? onUnauthorized;
 
   /// Call once in main() AFTER dotenv.load().
   void init() {
@@ -49,6 +51,30 @@ class ApiClient {
     // 3) PII-safe logging (debug/profile only)
     dio.interceptors.add(PiiSafeLogInterceptor(
       sampleRate: 1.0, // you can set 0.2 in profile if too chatty
+    ));
+
+    // 4) Logout on expired/invalid token
+    dio.interceptors.add(InterceptorsWrapper(
+      onError: (error, handler) async {
+        final status = error.response?.statusCode;
+        if (status == 401 || status == 403) {
+          await clearToken();
+          if (onUnauthorized != null) {
+            await onUnauthorized!();
+          }
+        }
+        handler.next(error);
+      },
+      onResponse: (response, handler) async {
+        final status = response.statusCode;
+        if (status == 401 || status == 403) {
+          await clearToken();
+          if (onUnauthorized != null) {
+            await onUnauthorized!();
+          }
+        }
+        handler.next(response);
+      },
     ));
 
     // ⚠️ Remove the default Dio LogInterceptor; ours is safer.
