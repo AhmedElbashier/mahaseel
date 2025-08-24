@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/crop.dart';
 import '../data/crops_repo.dart';
+import '../data/crop_filters.dart';
 import 'providers.dart';
 
 // DI for repo
@@ -59,7 +60,7 @@ StateNotifierProvider<CropsController, CropsState>((ref) {
 
 class CropsController extends StateNotifier<CropsState> {
   CropsController(this.ref) : super(CropsState.initial()) {
-    loadFirstPage();
+    _init();
   }
 
   final Ref ref;
@@ -72,6 +73,16 @@ class CropsController extends StateNotifier<CropsState> {
   SortOption _sort = SortOption.newest;
   static const _cacheBox = 'crops_cache';
   static const _cacheKey = 'items';
+
+  Future<void> _init() async {
+    final saved = await CropFilters.load();
+    _type = saved.type;
+    _state = saved.state;
+    _minPrice = saved.minPrice;
+    _maxPrice = saved.maxPrice;
+    _sort = saved.sort;
+    await loadFirstPage();
+  }
 
   /// Call this from the Filter Sheet
   Future<void> applyFilters({
@@ -86,6 +97,14 @@ class CropsController extends StateNotifier<CropsState> {
     _minPrice = minPrice;
     _maxPrice = maxPrice;
     if (sort != null) _sort = sort;
+
+    await CropFilters.save(CropFilters(
+      type: _type,
+      state: _state,
+      minPrice: _minPrice,
+      maxPrice: _maxPrice,
+      sort: _sort,
+    ));
 
     await Hive.box(_cacheBox).clear();
     await loadFirstPage(); // reload page 1 with new filters
