@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../../../services/api_client.dart';
 import '../models/rating_summary.dart';
 
@@ -11,7 +12,7 @@ class RatingsRepo {
   /// GET /ratings/seller/{sellerId}
   Future<RatingSummary> getSellerSummary(int sellerId) async {
     final url = '/ratings/seller/$sellerId';
-    print('🌐 GET ${_dio.options.baseUrl}$url');
+    debugPrint('🌐 GET ${_dio.options.baseUrl}$url');
     try {
       final res = await _dio.get(url);
 
@@ -35,7 +36,7 @@ class RatingsRepo {
     } on DioException catch (e) {
       final sc = e.response?.statusCode;
       final body = e.response?.data;
-      print('❌ GET ratings summary failed: $sc $body');
+      debugPrint('❌ GET ratings summary failed: $sc $body');
       if (body is Map && body['detail'] is String) {
         throw Exception(body['detail']);
       }
