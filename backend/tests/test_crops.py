@@ -26,13 +26,13 @@ def test_crop_create_list_filter(client: TestClient, auth_headers):
     list_all = client.get("/crops")
     assert list_all.status_code == 200
     data_all = list_all.json()
-    assert len(data_all) == 2
+    assert len(data_all["items"]) == 2
 
     filtered = client.get("/crops", params={"state": "State1"})
     assert filtered.status_code == 200
     data_filtered = filtered.json()
-    assert len(data_filtered) == 1
-    assert data_filtered[0]["location"]["state"] == "State1"
+    assert len(data_filtered["items"]) == 1
+    assert data_filtered["items"][0]["location"]["state"] == "State1"
 
 
 def test_crop_get(client: TestClient, auth_headers):
