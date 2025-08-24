@@ -140,18 +140,18 @@ class _CropListScreenState extends ConsumerState<CropListScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('المحاصيل'),
+        // title: const Text('المحاصيل'),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune),
             tooltip: 'الفرز والتصفية',
             onPressed: _openFilters,
           ),
-          IconButton(
-            onPressed: () => context.push('/crops/add'),
-            icon: const Icon(Icons.add),
-            tooltip: 'إضافة محصول',
-          ),
+          // IconButton(
+          //   onPressed: () => context.push('/crops/add'),
+          //   icon: const Icon(Icons.add),
+          //   tooltip: 'إضافة محصول',
+          // ),
         ],
       ),
       body: RefreshIndicator(

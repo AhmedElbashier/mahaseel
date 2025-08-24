@@ -14,7 +14,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'core/app_config.dart';
 import 'core/debug/riverpod_observer.dart';
 import 'routing/app_router.dart';
-
+import 'features/auth/state/auth_controller.dart';
 
 Future<void> _initHive() async {
   final dir = await getApplicationDocumentsDirectory();
@@ -41,21 +41,30 @@ Future<void> main() async {
     return true;
   };
 
+  final container = ProviderContainer(observers: [SimpleLogger()]);
+  final authControllerProvider =
+  StateNotifierProvider<AuthController, AuthState>((ref) {
+    return AuthController(ref);
+  });
+
   runZonedGuarded(() {
-    runApp(ProviderScope(observers: [SimpleLogger()], child: const MahaseelApp()));
+    // 👇 Provide the same container to the whole app
+    runApp(UncontrolledProviderScope(
+      container: container,
+      child: const MahaseelApp(),
+    ));
   }, (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
   });
-
 }
-
 
 class MahaseelApp extends ConsumerWidget {
   const MahaseelApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = createRouter(ref);
+    final router = ref.watch(goRouterProvider);
+
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Mahaseel',
@@ -67,7 +76,6 @@ class MahaseelApp extends ConsumerWidget {
       ),
       routerConfig: router,
 
-      // ✅ localization
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: const [

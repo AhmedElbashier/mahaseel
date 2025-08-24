@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/connectivity_service.dart';
 import '../../crops/data/location.dart';
-import '../../crops/providers.dart';
+import '../state/providers.dart';
 import '../../../core/permissions/location_permission.dart';
 import '../../location/map_picker_screen.dart';
 import '../../../core/http/fastapi_errors.dart';

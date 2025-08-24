@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/crop.dart';
 import '../data/crops_repo.dart';
-import '../providers.dart';
+import 'providers.dart';
 
 // DI for repo
 final cropsRepoProvider = Provider<CropsRepo>((ref) => CropsRepo(ref.read(dioProvider)));

@@ -5,11 +5,11 @@ import 'package:dio/dio.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 
-import '../../services/api_client.dart';
-import '../../services/retry_queue.dart';
-import '../../services/connectivity_service.dart';
-import 'data/crops_repo.dart';
-import 'models/crop.dart';
+import '../../../services/api_client.dart';
+import '../../../services/retry_queue.dart';
+import '../../../services/connectivity_service.dart';
+import '../data/crops_repo.dart';
+import '../models/crop.dart';
 
 final dioProvider = Provider<Dio>((ref) => ApiClient().dio);
 

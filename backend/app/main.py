@@ -25,6 +25,7 @@ from app.routes.media import router as media_router
 from app.routes.contact import router as contact_router
 from app.routes.admin import router as admin_routes
 from app.routes.ratings import router as rating_routes
+from app.routes.orders import router as order_routes
 
 from app.api.deps import get_current_user
 
@@ -69,6 +70,7 @@ app.include_router(crops_router)
 app.include_router(media_router)
 app.include_router(contact_router)
 app.include_router(rating_routes)
+app.include_router(order_routes)
 
 
 @app.get("/me", tags=["auth"])
