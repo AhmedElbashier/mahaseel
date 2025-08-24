@@ -103,4 +103,20 @@ class Crop {
   @override
   String toString() =>
       'Crop(id=$id, sellerName=$sellerName, sellerPhone=$sellerPhone)';
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'type': type,
+        'qty': qty,
+        'price': price,
+        'unit': unit,
+        'location': location.toJson(),
+        'seller_id': sellerId,
+        'seller_name': sellerName,
+        'seller_phone': sellerPhone,
+        'notes': notes,
+        'image_url': imageUrl,
+        'images': images,
+      };
 }

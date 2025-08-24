@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/crop.dart';
 import '../data/crops_repo.dart';
 import 'providers.dart';
@@ -69,6 +70,8 @@ class CropsController extends StateNotifier<CropsState> {
   double? _minPrice;
   double? _maxPrice;
   SortOption _sort = SortOption.newest;
+  static const _cacheBox = 'crops_cache';
+  static const _cacheKey = 'items';
 
   /// Call this from the Filter Sheet
   Future<void> applyFilters({
@@ -84,11 +87,22 @@ class CropsController extends StateNotifier<CropsState> {
     _maxPrice = maxPrice;
     if (sort != null) _sort = sort;
 
+    await Hive.box(_cacheBox).clear();
     await loadFirstPage(); // reload page 1 with new filters
   }
 
   Future<void> loadFirstPage() async {
     state = CropsState.initial();
+    final box = Hive.box(_cacheBox);
+    final cached = box.get(_cacheKey);
+    if (cached is List) {
+      final items = cached
+          .whereType<Map>()
+          .map((e) => Crop.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      state = state.copyWith(items: items, loading: false, page: 1, error: null);
+    }
+
     try {
       final repo = ref.read(cropsRepoProvider);
       const page = 1;
@@ -100,6 +114,10 @@ class CropsController extends StateNotifier<CropsState> {
         minPrice: _minPrice,
         maxPrice: _maxPrice,
         sort: _sort,
+      );
+      await box.put(
+        _cacheKey,
+        result.items.map((e) => e.toJson()).toList(),
       );
       state = state.copyWith(
         items: result.items,
@@ -113,7 +131,10 @@ class CropsController extends StateNotifier<CropsState> {
     }
   }
 
-  Future<void> refresh() => loadFirstPage();
+  Future<void> refresh() async {
+    await Hive.box(_cacheBox).clear();
+    await loadFirstPage();
+  }
 
   Future<void> loadNextPage() async {
     if (!state.hasMore || state.loadingMore) return;
