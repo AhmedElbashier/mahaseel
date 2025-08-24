@@ -5,13 +5,15 @@ import 'package:mahaseel/features/home/app_drawer.dart';
 class HomeShell extends StatelessWidget {
   final Widget child;
   final String title;
-  final VoidCallback? onAdd; // optional FAB action
+  final int currentIndex;
+  final ValueChanged<int> onTabSelected;
 
   const HomeShell({
     super.key,
     required this.child,
     this.title = 'محاصيل',
-    this.onAdd,
+    required this.currentIndex,
+    required this.onTabSelected,
   });
 
   @override
@@ -28,14 +30,30 @@ class HomeShell extends StatelessWidget {
         endDrawer: isRtl ? const AppDrawer() : null,
 
         appBar: AppBar(
-          title: Text(title),),
+          title: Text(title),
+        ),
         body: SafeArea(child: child),
-        floatingActionButton: onAdd == null
-            ? null
-            : FloatingActionButton(
-          onPressed: onAdd,
-          tooltip: 'إضافة محصول',
-          child: const Icon(Icons.add),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: currentIndex,
+          onDestinationSelected: onTabSelected,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              label: 'الرئيسية',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.add_circle_outline),
+              label: 'إضافة محصول',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.support_agent_outlined),
+              label: 'الدعم',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              label: 'الإعدادات',
+            ),
+          ],
         ),
       ),
     );
