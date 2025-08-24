@@ -25,12 +25,12 @@ def test_crop_create_list_filter(client: TestClient, auth_headers):
 
     list_all = client.get("/crops")
     assert list_all.status_code == 200
-    data_all = list_all.json()
+    data_all = list_all.json()["items"]
     assert len(data_all) == 2
 
     filtered = client.get("/crops", params={"state": "State1"})
     assert filtered.status_code == 200
-    data_filtered = filtered.json()
+    data_filtered = filtered.json()["items"]
     assert len(data_filtered) == 1
     assert data_filtered[0]["location"]["state"] == "State1"
 
