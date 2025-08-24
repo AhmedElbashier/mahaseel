@@ -19,7 +19,9 @@ def whatsapp_link(
     text: str = Query("", description="Message to pre-fill"),
     db: Session = Depends(get_db),
 ):
-    seller = db.query(User).get(seller_id)
+    # Use Session.get to fetch by primary key instead of the legacy Query.get
+    # which has been deprecated in SQLAlchemy 2.0
+    seller = db.get(User, seller_id)
     if not seller or seller.role != Role.seller:
         raise HTTPException(status_code=404, detail="seller not found")
     url = f"https://wa.me/{seller.phone}?text={quote(text)}"
