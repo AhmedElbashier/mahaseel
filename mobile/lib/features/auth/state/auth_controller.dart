@@ -32,6 +32,7 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
 class AuthController extends StateNotifier<AuthState> {
   AuthController(this.ref): super(AuthState()){
     _bootstrap();
+    ApiClient().onUnauthorized = _handleUnauthorized;
   }
   final Ref ref;
 
@@ -64,6 +65,11 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await ApiClient().clearToken();
+    state = AuthState();
+  }
+
+  /// Triggered when [ApiClient] receives a 401/403 response.
+  Future<void> _handleUnauthorized() async {
     state = AuthState();
   }
 }

@@ -3,7 +3,7 @@ from app.core.security import decode_token
 
 
 def test_register_login_verify_flow(client: TestClient):
-    payload = {"name": "Alice", "phone": "1112223333"}
+    payload = {"name": "Alice", "phone": "+1112223333"}
     r = client.post("/auth/register", json=payload)
     assert r.status_code == 201
 
@@ -20,7 +20,7 @@ def test_register_login_verify_flow(client: TestClient):
 
 
 def test_register_duplicate_phone(client: TestClient):
-    payload = {"name": "Bob", "phone": "2223334444"}
+    payload = {"name": "Bob", "phone": "+2223334444"}
     assert client.post("/auth/register", json=payload).status_code == 201
     r = client.post("/auth/register", json=payload)
     assert r.status_code == 409
