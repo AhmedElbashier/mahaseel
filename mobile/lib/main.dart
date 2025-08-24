@@ -15,6 +15,7 @@ import 'core/app_config.dart';
 import 'core/debug/riverpod_observer.dart';
 import 'routing/app_router.dart';
 import 'features/auth/state/auth_controller.dart';
+import 'features/settings/state/settings_controller.dart';
 
 Future<void> _initHive() async {
   final dir = await getApplicationDocumentsDirectory();
@@ -64,19 +65,27 @@ class MahaseelApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Mahaseel',
+      themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Roboto',
         colorSchemeSeed: const Color(0xFF2E7D32),
         brightness: Brightness.light,
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        fontFamily: 'Roboto',
+        colorSchemeSeed: const Color(0xFF2E7D32),
+        brightness: Brightness.dark,
+      ),
       routerConfig: router,
-
-      locale: const Locale('ar'),
+      locale: locale,
       supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
