@@ -6,6 +6,7 @@ import '../state/crops_controller.dart';
 import '../../../widgets/crop_card.dart';
 import '../../../widgets/crop_skeleton.dart';
 import '../data/crops_repo.dart' show SortOption;
+import '../data/crop_filters.dart';
 
 // ⬇️ ADD: sort enum to match repo (if not globally available)
 extension SortOptionX on SortOption {
@@ -53,6 +54,13 @@ class _Filters {
   }
 }
 
+class _PriceRange {
+  final String label;
+  final double min;
+  final double max;
+  const _PriceRange(this.label, this.min, this.max);
+}
+
 class CropListScreen extends ConsumerStatefulWidget {
   const CropListScreen({super.key});
 
@@ -76,16 +84,25 @@ class _CropListScreenState extends ConsumerState<CropListScreen>
   void initState() {
     super.initState();
     _controller.addListener(_maybeLoadMore);
-    // Optional: trigger initial refresh with default filters
-    Future.microtask(() => ref.read(cropsControllerProvider.notifier)
-        .applyFilters(
-      type: _filters.type,
-      state: _filters.state,
-      minPrice: _filters.minPrice,
-      maxPrice: _filters.maxPrice,
-      sort: _filters.sort,
-    )
-    );
+    Future.microtask(() async {
+      final saved = await CropFilters.load();
+      setState(() {
+        _filters = _Filters(
+          type: saved.type,
+          state: saved.state,
+          minPrice: saved.minPrice,
+          maxPrice: saved.maxPrice,
+          sort: saved.sort,
+        );
+      });
+      await ref.read(cropsControllerProvider.notifier).applyFilters(
+        type: _filters.type,
+        state: _filters.state,
+        minPrice: _filters.minPrice,
+        maxPrice: _filters.maxPrice,
+        sort: _filters.sort,
+      );
+    });
   }
 
   void _maybeLoadMore() {
@@ -245,21 +262,40 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   final _types = const ['grain', 'vegetable', 'fruit'];
   final _states = const ['Khartoum', 'Gezira', 'Sennar', 'Kassala'];
+  final _priceRanges = const [
+    _PriceRange('أي سعر', 0, 1000),
+    _PriceRange('0 - 100', 0, 100),
+    _PriceRange('100 - 500', 100, 500),
+    _PriceRange('500 - 1000', 500, 1000),
+    _PriceRange('أكثر من 1000', 1000, 10000),
+  ];
+  late int _priceIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _priceIndex =
+        _priceRanges.indexWhere((r) => r.min == _min && r.max == _max);
+    if (_priceIndex == -1) _priceIndex = 0;
+  }
 
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16, right: 16, top: 16,
-        bottom: mq.viewInsets.bottom + 16,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('التصفية والفرز', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16, right: 16, top: 16,
+          bottom: mq.viewInsets.bottom + 16,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('التصفية والفرز',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
 
             DropdownButtonFormField<String>(
               value: _type,
@@ -286,37 +322,20 @@ class _FilterSheetState extends State<_FilterSheet> {
             const SizedBox(height: 12),
 
             const Text('نطاق السعر'),
-            RangeSlider(
-              values: RangeValues(_min, _max),
-              min: 0,
-              max: 10000,
-              divisions: 100,
-              labels: RangeLabels(_min.toStringAsFixed(0), _max.toStringAsFixed(0)),
-              onChanged: (v) => setState(() {
-                _min = v.start;
-                _max = v.end;
+            Wrap(
+              spacing: 8,
+              children: List.generate(_priceRanges.length, (i) {
+                final r = _priceRanges[i];
+                return ChoiceChip(
+                  label: Text(r.label),
+                  selected: _priceIndex == i,
+                  onSelected: (_) => setState(() {
+                    _priceIndex = i;
+                    _min = r.min;
+                    _max = r.max;
+                  }),
+                );
               }),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    decoration: const InputDecoration(labelText: 'الحد الأدنى', border: OutlineInputBorder()),
-                    keyboardType: TextInputType.number,
-                    initialValue: _min.toStringAsFixed(0),
-                    onChanged: (v) => _min = double.tryParse(v) ?? _min,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    decoration: const InputDecoration(labelText: 'الحد الأعلى', border: OutlineInputBorder()),
-                    keyboardType: TextInputType.number,
-                    initialValue: _max.toStringAsFixed(0),
-                    onChanged: (v) => _max = double.tryParse(v) ?? _max,
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 12),
 
@@ -331,20 +350,25 @@ class _FilterSheetState extends State<_FilterSheet> {
             const SizedBox(height: 12),
             Row(
               children: [
-                TextButton(
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة الضبط'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.secondary,
+                  ),
                   onPressed: () {
                     setState(() {
                       _type = null;
                       _state = null;
-                      _min = 0;
-                      _max = 1000;
+                      _priceIndex = 0;
+                      _min = _priceRanges[0].min;
+                      _max = _priceRanges[0].max;
                       _sort = SortOption.newest;
                     });
                   },
-                  child: const Text('إعادة الضبط'),
                 ),
                 const Spacer(),
-                ElevatedButton.icon(
+                FilledButton.icon(
                   icon: const Icon(Icons.check),
                   label: const Text('تطبيق'),
                   onPressed: () {
