@@ -9,7 +9,7 @@ import '../../services/api_client.dart';
 import '../../services/retry_queue.dart';
 import '../../services/connectivity_service.dart';
 import 'data/crops_repo.dart';
-import 'data/crop.dart';
+import 'models/crop.dart';
 
 final dioProvider = Provider<Dio>((ref) => ApiClient().dio);
 

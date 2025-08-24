@@ -5,7 +5,7 @@ import 'package:mahaseel/features/crops/data/location.dart';
 
 // FIX THE PACKAGE NAME BELOW to match your pubspec.yaml
 import 'package:mahaseel/widgets/crop_card.dart';
-import 'package:mahaseel/features/crops/data/crop.dart';
+import 'package:mahaseel/features/crops/models/crop.dart';
 
 void main() {
   testWidgets('CropCard shows name, qty and unit', (tester) async {

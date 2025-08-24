@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../features/crops/data/crop.dart';
+import '../features/crops/models/crop.dart';
 
 class CropCard extends StatelessWidget {
   const CropCard({super.key, required this.crop, this.onTap});

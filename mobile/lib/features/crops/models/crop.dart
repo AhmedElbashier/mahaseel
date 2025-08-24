@@ -1,6 +1,6 @@
 // lib/features/crops/data/crop.dart
 import '../../../core/http/url.dart';
-import 'location.dart';
+import '../data/location.dart';
 
 class Crop {
   final int id;

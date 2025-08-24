@@ -1,10 +1,9 @@
 // lib/features/crops/screens/crop_details_screen.dart
-// NOTE: This file has been modified for Day 16 (Maps Integration).
-// A Google Map preview is displayed on the crop details screen. Tapping
-// the preview opens the native maps app at the crop location. We also
-// request location permission to optionally show the user's current
-// position on the map. If permission is denied, the map still works but
-// does not display the user's location.
+// NOTE: Day 16 (Maps) + Day 26 (Ratings) integrated.
+// - Google Map preview with tap-to-open native maps
+// - WhatsApp deep link
+// - Share
+// - Ratings summary + submit (1–5 stars) with Riverpod controller
 
 import 'dart:async';
 
@@ -14,11 +13,13 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../data/crop.dart';
+import '../../ratings/state/ratings_controller.dart';
+import '../models/crop.dart';
 import '../data/location.dart';
 import '../providers.dart';
 
@@ -33,6 +34,7 @@ class CropDetailsScreen extends ConsumerStatefulWidget {
 
 class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
   late Future<Crop> _future;
+  int? _loadedSummaryForSeller;
 
   // Whether location permission has been granted. Used to enable myLocation on the map.
   bool _locationGranted = false;
@@ -44,18 +46,17 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
     _requestLocationPermission();
   }
 
-  /// Requests location permission from the user. If permission is denied or
-  /// permanently denied, [_locationGranted] will remain false. Otherwise it
-  /// becomes true, enabling the 'my location' dot on the map.
+  /// Requests location permission from the user.
   Future<void> _requestLocationPermission() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
+    if (!mounted) return;
     setState(() {
       _locationGranted =
           permission == LocationPermission.always ||
-          permission == LocationPermission.whileInUse;
+              permission == LocationPermission.whileInUse;
     });
   }
 
@@ -116,18 +117,12 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
     }
   }
 
-  /// Opens the native maps application at the provided coordinates. If no native
-  /// maps app can be launched, falls back to a web URL. Shows a snackbar on
-  /// failure.
+  /// Opens the native maps application at the provided coordinates. Falls back to web URL.
   Future<void> _openNativeMap(LocationData loc) async {
     final lat = loc.lat;
     final lng = loc.lng;
-    // geo: URI scheme attempts to open the default maps app on Android
-    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
-    // Web fallback for iOS and other platforms
-    final webUri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
-    );
+    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng'); // Android
+    final webUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
     try {
       if (await canLaunchUrl(geoUri)) {
         await launchUrl(geoUri, mode: LaunchMode.externalApplication);
@@ -138,12 +133,11 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
         return;
       }
     } catch (_) {
-      // ignore errors and fall through to snackbar
+      // ignore, show snackbar below
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('تعذّر فتح تطبيق الخرائط')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('تعذّر فتح تطبيق الخرائط')));
   }
 
   @override
@@ -152,8 +146,7 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
       appBar: AppBar(
         title: const Text('تفاصيل المحصول'),
         leading: BackButton(
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go('/crops'),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/crops'),
         ),
       ),
       body: FutureBuilder<Crop>(
@@ -165,10 +158,20 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
           if (snap.hasError || !snap.hasData) {
             return Center(child: Text('خطأ في التحميل: ${snap.error}'));
           }
+
           final c = snap.data!;
+
+          // Load rating summary once per seller
+          if (_loadedSummaryForSeller != c.sellerId) {
+            _loadedSummaryForSeller = c.sellerId;
+            ref.read(ratingsControllerProvider.notifier).loadSummary(c.sellerId);
+          }
+          final ratingsState = ref.watch(ratingsControllerProvider);
+
           final gallery = c.images;
           final hasGallery = gallery.isNotEmpty;
           final fallbackUrl = c.imageUrl;
+
           Widget galleryWidget;
           if (hasGallery) {
             galleryWidget = SizedBox(
@@ -195,7 +198,7 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
                 fallbackUrl,
                 height: 220,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
+                errorBuilder: (_, __, ___) =>
                     Container(height: 160, color: Colors.grey.shade200),
               ),
             );
@@ -227,6 +230,8 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
               const SizedBox(height: 12),
               if (c.notes != null && c.notes!.isNotEmpty) Text(c.notes!),
               const SizedBox(height: 16),
+
+              // Seller card
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const CircleAvatar(child: Icon(Icons.person)),
@@ -234,14 +239,46 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
                 subtitle: Text(c.sellerPhone ?? '—'),
                 trailing: (c.sellerPhone?.trim().isNotEmpty ?? false)
                     ? FilledButton.icon(
-                        onPressed: () => _openWhatsApp(c),
-                        icon: const Icon(Icons.chat),
-                        label: const Text('واتساب'),
-                      )
+                  onPressed: () => _openWhatsApp(c),
+                  icon: const Icon(Icons.chat),
+                  label: const Text('واتساب'),
+                )
                     : null,
               ),
+
+              // === Ratings ===
               const SizedBox(height: 8),
-              // Begin map preview widget
+              if (ratingsState.loading) const LinearProgressIndicator(),
+              const SizedBox(height: 8),
+              _RatingSummaryRow(
+                avg: ratingsState.summary?.avg ?? 0,
+                count: ratingsState.summary?.count ?? 0,
+              ),
+              const SizedBox(height: 12),
+              _RateSellerBar(
+                onRated: (stars) async {
+                  final ok = await ref
+                      .read(ratingsControllerProvider.notifier)
+                      .rateSeller(
+                    sellerId: c.sellerId,
+                    stars: stars,
+                    cropId: c.id, // per-crop anti-abuse
+                  );
+                  if (!mounted) return;
+                  if (ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('شكراً على تقييمك!')),
+                    );
+                  } else {
+                    final err = ref.read(ratingsControllerProvider).error ?? 'حدث خطأ';
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(err)));
+                  }
+                },
+              ),
+
+              // Map preview
+              const SizedBox(height: 12),
               SizedBox(
                 height: 200,
                 child: GestureDetector(
@@ -267,8 +304,6 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
                       zoomControlsEnabled: false,
                       tiltGesturesEnabled: false,
                       onTap: (LatLng _) => _openNativeMap(c.location),
-                      // The google_maps_flutter plugin internally caches tiles.
-                      // See: https://developers.google.com/maps/documentation/terms#section_10_4
                     ),
                   ),
                 ),
@@ -281,6 +316,7 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
                     style: TextStyle(fontSize: 12, color: Colors.red),
                   ),
                 ),
+
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () => _share(c),
@@ -291,6 +327,76 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Simple inline summary row (average + count)
+class _RatingSummaryRow extends StatelessWidget {
+  final double avg;
+  final int count;
+  const _RatingSummaryRow({required this.avg, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        RatingBarIndicator(
+          rating: avg,
+          itemBuilder: (context, _) => const Icon(Icons.star),
+          itemSize: 22,
+        ),
+        const SizedBox(width: 8),
+        Text('${avg.toStringAsFixed(1)} / 5'),
+        const SizedBox(width: 8),
+        Text('($count تقييم)'),
+      ],
+    );
+  }
+}
+
+/// Inline star input + submit button
+class _RateSellerBar extends StatefulWidget {
+  final void Function(int stars) onRated;
+  final bool disabled;
+  const _RateSellerBar({required this.onRated, this.disabled = false});
+
+  @override
+  State<_RateSellerBar> createState() => _RateSellerBarState();
+}
+
+class _RateSellerBarState extends State<_RateSellerBar> {
+  double _current = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('قيّم البائع', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        IgnorePointer(
+          ignoring: widget.disabled,
+          child: RatingBar.builder(
+            initialRating: _current,
+            minRating: 1,
+            maxRating: 5,
+            allowHalfRating: false,
+            itemBuilder: (context, _) => const Icon(Icons.star),
+            itemSize: 32,
+            onRatingUpdate: (val) => setState(() => _current = val),
+            updateOnDrag: true,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          onPressed: widget.disabled || _current == 0
+              ? null
+              : () => widget.onRated(_current.toInt()),
+          icon: const Icon(Icons.send),
+          label: const Text('إرسال التقييم'),
+        ),
+      ],
     );
   }
 }

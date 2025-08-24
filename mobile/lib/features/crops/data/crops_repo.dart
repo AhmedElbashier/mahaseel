@@ -2,8 +2,23 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 
-import './crop.dart';
+import '../models/crop.dart';
 import './location.dart';
+
+enum SortOption { newest, priceAsc, priceDesc }
+
+extension SortOptionX on SortOption {
+  String get apiValue {
+    switch (this) {
+      case SortOption.newest:
+        return 'newest';
+      case SortOption.priceAsc:
+        return 'price_asc';
+      case SortOption.priceDesc:
+        return 'price_desc';
+    }
+  }
+}
 
 class Paginated<T> {
   final List<T> items;
@@ -23,9 +38,7 @@ class CropsRepo {
     final crop = Crop.fromJson(res.data as Map<String, dynamic>);
     // DEBUG
     // ignore: avoid_print
-    print(
-      'repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}',
-    );
+    print('repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}');
     return crop;
   }
 
@@ -99,9 +112,7 @@ class CropsRepo {
         for (final f in images)
           await MultipartFile.fromFile(
             f.path,
-            filename: f.uri.pathSegments.isNotEmpty
-                ? f.uri.pathSegments.last
-                : 'image.jpg',
+            filename: f.uri.pathSegments.isNotEmpty ? f.uri.pathSegments.last : 'image.jpg',
           ),
       ],
     });
@@ -109,33 +120,39 @@ class CropsRepo {
     return Crop.fromJson(res.data as Map<String, dynamic>);
   }
 
-  Future<Paginated<Crop>> fetch({required int page, int limit = 20}) async {
-    final res = await _dio.get(
-      '/crops',
-      queryParameters: {'page': page, 'limit': limit},
-    );
+  Future<Paginated<Crop>> fetch({
+    required int page,
+    int limit = 20,
+    String? type,
+    String? state,
+    double? minPrice,
+    double? maxPrice,
+    SortOption sort = SortOption.newest,
+  }) async {
+    final query = <String, dynamic>{
+      'page': page,
+      'limit': limit,
+      if (type != null && type.isNotEmpty) 'type': type,
+      if (state != null && state.isNotEmpty) 'state': state,
+      if (minPrice != null) 'min_price': minPrice,
+      if (maxPrice != null) 'max_price': maxPrice,
+      'sort': sort.apiValue,
+    };
 
+    final res = await _dio.get('/crops', queryParameters: query);
     final data = res.data;
 
     if (data is List) {
-      final items = data
-          .map((e) => Crop.fromJson(e as Map<String, dynamic>))
-          .toList();
-
+      // legacy shape (list only)
+      final items = data.map((e) => Crop.fromJson(e as Map<String, dynamic>)).toList();
       final bool fullPage = items.length >= limit;
-      final syntheticTotal = fullPage
-          ? (page * limit + 1)
-          : (page - 1) * limit + items.length;
-
+      final syntheticTotal = fullPage ? (page * limit + 1) : (page - 1) * limit + items.length;
       return Paginated<Crop>(items, page, limit, syntheticTotal);
     }
 
     if (data is Map<String, dynamic>) {
       final itemsJson = (data['items'] as List?) ?? const [];
-      final items = itemsJson
-          .map((e) => Crop.fromJson(e as Map<String, dynamic>))
-          .toList();
-
+      final items = itemsJson.map((e) => Crop.fromJson(e as Map<String, dynamic>)).toList();
       return Paginated<Crop>(
         items,
         (data['page'] as num?)?.toInt() ?? page,

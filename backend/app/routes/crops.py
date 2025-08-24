@@ -1,8 +1,8 @@
 # app/api/routes/crops.py
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic_core import Url
+from enum import Enum
 from sqlalchemy import func
-from sqlalchemy.orm import Session, selectinload,joinedload
+from sqlalchemy.orm import Session, selectinload, joinedload
 from typing import List, Optional
 
 from app.schemas.crop import CropCreate, CropOut
@@ -10,10 +10,7 @@ from app.db.session import get_db
 from app.models import Crop
 from app.api.deps import require_roles
 from app.utils.serializers import serialize_crop
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from app.core.ratelimit import limiter
-from app.models.media import Media
 from app.models.user import User
 
 router = APIRouter(prefix="/crops", tags=["crops"])
@@ -32,10 +29,8 @@ def create_crop(
     if not data.location:
         raise HTTPException(400, "location is required")
 
-    # Normalize state casing at write-time (optional but helps indexing)
-    norm_state = data.location.state.strip() if data.location.state else None
-    if norm_state:
-        norm_state = norm_state.title()
+    # Normalize state casing at write-time
+    norm_state = data.location.state.strip().title() if (data.location.state) else None
 
     crop = Crop(
         name=data.name,
@@ -51,22 +46,18 @@ def create_crop(
         address=data.location.address,
         notes=data.notes,
     )
-    db.add(crop); db.commit(); db.refresh(crop)
-    # eager-load media for consistent response shape
-    db.refresh(crop, attribute_names=["media"])
+    db.add(crop)
+    db.commit()
+    db.refresh(crop)
+    db.refresh(crop, attribute_names=["media"])  # eager-load media
     return serialize_crop(crop)
 
-@router.get("", response_model=List[dict])
+@router.get("", response_model=dict)
 @limiter.limit("60/minute")
 def list_crops(
     request: Request,
     db: Session = Depends(get_db),
-    state: Optional[str] = Query(default=None),
-    type_: Optional[str] = Query(default=None, alias="type"),
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    page: Optional[int] = Query(None, ge=1),
-):  
+
     # filters
     state: Optional[str] = Query(default=None, description="State filter"),
     type_: Optional[str] = Query(default=None, alias="type", description="Crop type filter"),
@@ -76,14 +67,23 @@ def list_crops(
     # sorting
     sort: CropSort = Query(default=CropSort.newest),
 
-    # validate price range
+    # pagination
+    limit: int = Query(50, ge=1, le=100),
+    offset: Optional[int] = Query(None, ge=0),
+    page: Optional[int] = Query(None, ge=1),
+):
+    # validate price range (now real floats/None, not Query objects)
     if (min_price is not None) and (max_price is not None) and (min_price > max_price):
         raise HTTPException(status_code=400, detail="min_price cannot be greater than max_price")
+
     # compute offset from page if provided (page starts at 1)
-    if offset is None and page is not None:
+    if page is not None:
         offset = (page - 1) * limit
     if offset is None:
         offset = 0
+    if page is None:
+        page = (offset // limit) + 1
+
     # Normalize input the SAME way we normalized at write-time
     state_norm = state.strip().title() if state else None
 
@@ -95,7 +95,7 @@ def list_crops(
         )
     )
 
-    # 4) filters
+    # filters
     if type_:
         q = q.filter(Crop.type == type_)
     if state_norm:
@@ -105,10 +105,10 @@ def list_crops(
     if max_price is not None:
         q = q.filter(Crop.price <= max_price)
 
-    # 5) total BEFORE pagination
+    # total BEFORE pagination
     total = q.count()
 
-    # 6) sorting
+    # sorting
     if sort == CropSort.newest:
         q = q.order_by(Crop.created_at.desc(), Crop.id.desc())
     elif sort == CropSort.price_asc:
@@ -116,18 +116,15 @@ def list_crops(
     elif sort == CropSort.price_desc:
         q = q.order_by(Crop.price.desc(), Crop.id.desc())
 
-    # 7) pagination
-    offset = (page - 1) * limit
+    # pagination
     rows = q.offset(offset).limit(limit).all()
 
-    rows = q.order_by(Crop.created_at.desc(), Crop.id.desc()).offset(offset).limit(limit).all()
     return {
         "items": [serialize_crop(c, request) for c in rows],
         "page": page,
         "limit": limit,
         "total": total,
     }
-
 
 @router.get("/{crop_id}", response_model=dict)
 @limiter.limit("60/minute")
