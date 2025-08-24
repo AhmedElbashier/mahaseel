@@ -6,7 +6,7 @@ from app.models import User, Crop, Role
 
 @pytest.fixture
 def seller(db):
-    seller = User(name="Seller", phone="1234567890", role=Role.seller)
+    seller = User(name="Seller", phone="+1234567890", role=Role.seller)
     db.add(seller)
     db.commit()
     db.refresh(seller)

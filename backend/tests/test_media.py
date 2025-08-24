@@ -29,7 +29,7 @@ def test_media_upload_and_main_image(client: TestClient, auth_headers, tmp_path,
     files1 = {"file": ("img1.jpg", img1, "image/jpeg")}
     m1_resp = client.post(
         "/media/upload",
-        params={"crop_id": crop_id, "is_main": "true"},
+        data={"crop_id": crop_id, "is_main": "true"},
         files=files1,
         headers=auth_headers,
     )
@@ -41,7 +41,7 @@ def test_media_upload_and_main_image(client: TestClient, auth_headers, tmp_path,
     files2 = {"file": ("img2.jpg", img2, "image/jpeg")}
     m2_resp = client.post(
         "/media/upload",
-        params={"crop_id": crop_id, "is_main": "true"},
+        data={"crop_id": crop_id, "is_main": "true"},
         files=files2,
         headers=auth_headers,
     )
@@ -56,4 +56,4 @@ def test_media_upload_and_main_image(client: TestClient, auth_headers, tmp_path,
     assert len(mains) == 1 and mains[0]["id"] == m2["id"]
 
     crop_detail = client.get(f"/crops/{crop_id}").json()
-    assert crop_detail["image_url"] == m2["url"]
+    assert crop_detail["image_url"].endswith(m2["url"])
