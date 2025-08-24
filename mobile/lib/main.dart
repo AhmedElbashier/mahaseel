@@ -19,7 +19,7 @@ import 'features/auth/state/auth_controller.dart';
 Future<void> _initHive() async {
   final dir = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(dir.path);
-  await Hive.openBox('crops');        // list cache
+  await Hive.openBox('crops_cache');  // list cache
   await Hive.openBox('crop_details'); // details cache
   await Hive.openBox('pending_ops');  // retry queue
 }
