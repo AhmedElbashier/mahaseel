@@ -44,7 +44,7 @@ def client(db):
 
 @pytest.fixture
 def auth_headers(client):
-    phone = "1234567890"
+    phone = "+1234567890"
     client.post("/auth/register", json={"name": "Tester", "phone": phone})
     login = client.post("/auth/login", json={"phone": phone})
     otp = login.json()["dev_otp"]
@@ -54,14 +54,14 @@ def auth_headers(client):
 
 @pytest.fixture
 def buyer_headers(db):
-    user = User(name="Buyer", phone="0000000000", role=Role.buyer)
+    user = User(name="Buyer", phone="+0000000000", role=Role.buyer)
     db.add(user); db.commit(); db.refresh(user)
     token = create_access_token(user.id, user.role.value)
     return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture
 def admin_headers(db):
-    user = User(name="Admin", phone="1111111111", role=Role.admin)
+    user = User(name="Admin", phone="+1111111111", role=Role.admin)
     db.add(user); db.commit(); db.refresh(user)
     token = create_access_token(user.id, user.role.value)
     return {"Authorization": f"Bearer {token}"}
