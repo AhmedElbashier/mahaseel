@@ -14,7 +14,8 @@ class LoginPhoneScreen extends ConsumerStatefulWidget {
 
 class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
   late final TextEditingController _phoneCtrl;
-  late final ProviderSubscription<AuthState> _authListener;
+  late final ProviderSubscription<AuthState> _authSub;
+
   final _formKey = GlobalKey<FormState>();
   String _countryCode = '+970';
 
@@ -22,21 +23,33 @@ class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
   void initState() {
     super.initState();
     _phoneCtrl = TextEditingController();
-    _authListener = ref.listen(authControllerProvider, (prev, next) {
-      if (next.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل: ${next.error}')),
-        );
-      } else if (!next.loading && next.phone != null) {
-        context.push('/otp?phone=${next.phone}');
-      }
-    });
+    _authSub = ref.listenManual<AuthState>(
+      authControllerProvider,
+          (prev, next) {
+        if (!mounted) return;
+
+        // When OTP is produced (dev or real), go to OTP screen once
+        final becameOtp = (prev?.devOtp == null && next.devOtp != null);
+        if (becameOtp) {
+          context.push('/otp', extra: {'phone': next.phone});
+        }
+
+        // If an error just appeared, show it
+        final gotNewError = (prev?.error != next.error) && next.error != null;
+        if (gotNewError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(next.error!)),
+          );
+        }
+      },
+      fireImmediately: false,
+    );
   }
 
   @override
   void dispose() {
+    _authSub.close();
     _phoneCtrl.dispose();
-    _authListener.close();
     super.dispose();
   }
 
@@ -72,10 +85,11 @@ class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
                         ),
                       ),
                       items: const [
+                        DropdownMenuItem(value: '+249', child: Text('+249')),
                         DropdownMenuItem(value: '+970', child: Text('+970')),
                         DropdownMenuItem(value: '+966', child: Text('+966')),
                       ],
-                      onChanged: (v) => setState(() => _countryCode = v ?? '+970'),
+                      onChanged: (v) => setState(() => _countryCode = v ?? '+249'),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -112,10 +126,12 @@ class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
                     : const Text('متابعة'),
               ),
               if (auth.devOtp != null) ...[
+
                 const SizedBox(height: 12),
                 Text(
                   'OTP (dev): ${auth.devOtp}',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
+
                 ),
               ]
             ],

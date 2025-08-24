@@ -23,7 +23,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     _otpCtrl = TextEditingController();
     _otpCtrl.addListener(() {
       setState(() {
-        _progress = _otpCtrl.text.length / 6;
+        _progress = _otpCtrl.text.length / 4;
       });
     });
   }
@@ -75,7 +75,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   ),
                 ),
                 validator: (v) =>
-                    (v == null || v.trim().length < 6) ? 'أدخل الرمز' : null,
+                    (v == null || v.trim().length < 4) ? 'أدخل الرمز' : null,
               ),
               const SizedBox(height: 16),
               FilledButton(

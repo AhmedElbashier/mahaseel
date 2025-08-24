@@ -81,17 +81,6 @@ class MahaseelApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       title: 'Mahaseel',
       themeMode: themeMode,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: lightScheme,
-        fontFamily: 'Cairo',
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: darkScheme,
-        fontFamily: 'Cairo',
-      ),
-      themeMode: themeMode,
       darkTheme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Roboto',
