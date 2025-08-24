@@ -17,6 +17,8 @@ import 'routing/app_router.dart';
 import 'features/auth/state/auth_controller.dart';
 import 'features/settings/state/settings_controller.dart';
 
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
+
 Future<void> _initHive() async {
   final dir = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(dir.path);
@@ -66,6 +68,13 @@ class MahaseelApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
+
+    const seed = Color(0xFF2E7D32);
+    final lightScheme = ColorScheme.fromSeed(seedColor: seed);
+    final darkScheme = ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: Brightness.dark,
+    );
     final locale = ref.watch(localeProvider);
 
     return MaterialApp.router(
@@ -74,10 +83,15 @@ class MahaseelApp extends ConsumerWidget {
       themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: 'Roboto',
-        colorSchemeSeed: const Color(0xFF2E7D32),
-        brightness: Brightness.light,
+        colorScheme: lightScheme,
+        fontFamily: 'Cairo',
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: darkScheme,
+        fontFamily: 'Cairo',
+      ),
+      themeMode: themeMode,
       darkTheme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Roboto',
