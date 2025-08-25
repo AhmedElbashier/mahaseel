@@ -1,7 +1,9 @@
 // lib/features/auth/state/auth_controller.dart
 import 'package:dio/dio.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import '../../../services/api_client.dart';
 import '../data/auth_repo.dart';
 
@@ -36,6 +38,7 @@ class AuthState {
   final String? error;
   final String? devOtp; // show-only in dev
   final String? phone;
+  final String? scope;                   // <-- add this
 
   /// NEW: user (nullable). When null => not logged in / not loaded yet.
   final AppUser? user;
@@ -47,6 +50,7 @@ class AuthState {
     this.devOtp,
     this.phone,
     this.user,
+    this.scope
   });
 
   AuthState copyWith({
@@ -56,6 +60,7 @@ class AuthState {
     String? devOtp,
     String? phone,
     AppUser? user, // pass null explicitly to clear
+    String? scope
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -77,12 +82,13 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
 );
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController(this.ref, this._dio) : super(const AuthState()) {
+  AuthController(this.ref)
+      : _dio = ApiClient().dio,
+        super(const AuthState()) {
     _bootstrap();
     ApiClient().onUnauthorized = _handleUnauthorized;
   }
   final Ref ref;
-  final _store = const FlutterSecureStorage();
   final Dio _dio;
 
   /// On app start, if we already have a token → mark authenticated and load profile.
@@ -104,7 +110,7 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> verifyOtp(String otp) async {
+  Future<void> verifyLoginOtp(String otp) async {
     final phone = state.phone!;
     state = state.copyWith(loading: true, error: null);
     try {
@@ -142,90 +148,111 @@ class AuthController extends StateNotifier<AuthState> {
   ///
   /// Replace the mock below with your real API call, e.g.:
   /// final dto = await ref.read(authRepoProvider).getProfile();
-  /// final user = AppUser(id: dto.id, name: dto.name, phone: dto.phone, role: dto.role);
+
+
+  Future<void> loginWithGoogle() async {
+    state = state.copyWith(loading: true, error: null);
+    try {
+      final signIn = GoogleSignIn.instance;
+
+      // IMPORTANT: use your Google "Web client ID" here so you get an ID token
+      await signIn.initialize(
+        // clientId: 'ios-client-id.apps.googleusercontent.com', // iOS only if you have it
+        serverClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+      );
+
+      GoogleSignInAccount? account;
+      if (signIn.supportsAuthenticate()) {
+        account = await signIn.authenticate(scopeHint: ['email', 'profile']);
+      } else {
+        // fallback (older/web platforms can try a lightweight attempt)
+        account = await signIn.attemptLightweightAuthentication();
+        if (account == null) throw Exception('Google Sign-In not available');
+      }
+
+      final idToken = (await account.authentication).idToken;
+      if (idToken == null) throw Exception('No Google ID token (check serverClientId)');
+
+      final res = await _dio.post('/auth/social/google', data: {'token': idToken});
+      final temp = res.data['access_token'] as String;
+
+      await ApiClient().saveToken(temp);   // temp JWT (scope=link_phone)
+      await _loadProfile();                // fills user + scope from /auth/me
+      state = state.copyWith(loading: false);
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+    }
+  }
+
+
+  Future<void> loginWithFacebook() async {
+    state = state.copyWith(loading: true, error: null);
+    try {
+      final result = await FacebookAuth.instance.login(
+        permissions: ['public_profile', 'email'],
+      );
+      if (result.status != LoginStatus.success) {
+        throw Exception('FB login cancelled: ${result.status}');
+      }
+
+      final accessToken = result.accessToken!.tokenString; // << changed
+      final res = await _dio.post('/auth/social/facebook', data: {'token': accessToken});
+      final temp = res.data['access_token'] as String;
+
+      await ApiClient().saveToken(temp);   // temp token (scope=link_phone)
+      await _loadProfile();
+      state = state.copyWith(loading: false);
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+    }
+  }
+
+  Future<void> linkPhone(String phone) async {
+    state = state.copyWith(loading: true, error: null);
+    try {
+      final r = await _dio.post('/auth/link-phone', data: {'phone': phone});
+      final devOtp = (r.data is Map<String, dynamic>) ? r.data['code'] as String? : null;
+      state = state.copyWith(loading: false, devOtp: devOtp, phone: phone);
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+    }
+  }
+
+  Future<void> verifyLinkOtp(String phone, String code) async {
+    state = state.copyWith(loading: true, error: null);
+    try {
+      final r = await _dio.post('/auth/verify-otp', data: {'phone': phone, 'code': code});
+      final full = r.data['access_token'] as String;
+
+      await ApiClient().saveToken(full);  // upgrade to full token (scope=user)
+      await _loadProfile();
+      state = state.copyWith(loading: false, devOtp: null);
+    } catch (e) {
+      state = state.copyWith(loading: false, error: e.toString());
+    }
+  }
+  Future<bool> isFullyAuthed() async {
+    try {
+      final me = await _dio.get('/auth/me');
+      return (me.data['scope'] as String?) == 'user';
+    } catch (_) {
+      return false;
+    }
+  }
   Future<void> _loadProfile() async {
     try {
-      // If you have an endpoint, call it here and map to AppUser.
-      // For now, build a minimal user using the known phone or a placeholder.
-      final phone = state.phone ?? '9xxxxxxx';
-      // You can also persist "name/role" server-side and fetch them.
+      final r = await _dio.get('/auth/me'); // ApiClient injects Authorization
+      final data = Map<String, dynamic>.from(r.data);
       final user = AppUser(
-        id: 'self', // replace with real id
-        name: 'مستخدم محاصيل', // replace with server name
-        phone: phone,
-        role: 'seller', // replace with server role
+        id: '${data['id']}',
+        name: (data['name'] ?? 'مستخدم') as String,
+        phone: (data['phone'] ?? '') as String,
+        role: (data['role'] ?? 'seller') as String,
       );
-      state = state.copyWith(user: user);
+      state = state.copyWith(user: user, scope: data['scope'] as String?, isAuthenticated: true);
     } catch (_) {
-      // If profile fails, keep authenticated but no user (UI should handle nulls safely).
       state = state.copyWith(user: null);
     }
   }
 
-  Future<void> loginWithGoogle() async {
-    final gs = GoogleSignIn(scopes: ['email', 'profile']);
-    final acc = await gs.signIn();
-    final auth = await acc?.authentication;
-    final idToken = auth?.idToken;
-    if (idToken == null) throw Exception('No Google ID token');
-    final res = await _dio.post(
-      '/auth/social/google',
-      data: {'token': idToken},
-    );
-    final temp = res.data['access_token'] as String;
-    await _store.write(key: 'token', value: temp);
-  }
-
-  Future<void> loginWithFacebook() async {
-    final result = await FacebookAuth.instance.login(
-      permissions: ['public_profile', 'email'],
-    );
-    if (result.status != LoginStatus.success)
-      throw Exception('FB login cancelled');
-    final accessToken = result.accessToken!.token;
-    final res = await _dio.post(
-      '/auth/social/facebook',
-      data: {'token': accessToken},
-    );
-    final temp = res.data['access_token'] as String;
-    await _store.write(key: 'token', value: temp);
-  }
-
-  Future<Map<String, dynamic>> me() async {
-    final t = await _store.read(key: 'token');
-    if (t == null) throw Exception('no token');
-    final r = await _dio.get(
-      '/auth/me',
-      options: Options(headers: {'Authorization': 'Bearer $t'}),
-    );
-    return Map<String, dynamic>.from(r.data);
-  }
-
-  Future<void> linkPhone(String phone) async {
-    final t = await _store.read(key: 'token');
-    final r = await _dio.post(
-      '/auth/link-phone',
-      data: {'phone': phone},
-      options: Options(headers: {'Authorization': 'Bearer $t'}),
-    );
-    // show r.data['code'] in dev
-  }
-
-  Future<void> verifyOtp(String phone, String code) async {
-    final t = await _store.read(key: 'token');
-    final r = await _dio.post(
-      '/auth/verify-otp',
-      data: {'phone': phone, 'code': code},
-      options: Options(headers: {'Authorization': 'Bearer $t'}),
-    );
-    final full = r.data['access_token'] as String;
-    await _store.write(key: 'token', value: full);
-  }
-
-  Future<bool> isFullyAuthed() async {
-    final t = await _store.read(key: 'token');
-    if (t == null) return false;
-    final payload = Jwt.parseJwt(t);
-    return payload['scope'] == 'user';
-  }
 }
