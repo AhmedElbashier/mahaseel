@@ -1,5 +1,7 @@
 // lib/features/auth/state/auth_controller.dart
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../services/api_client.dart';
 import '../data/auth_repo.dart';
 
@@ -68,17 +70,20 @@ class AuthState {
 
 final authRepoProvider = Provider((_) => AuthRepo());
 
-final authControllerProvider =
-StateNotifierProvider<AuthController, AuthState>((ref) {
-  return AuthController(ref);
-});
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    return AuthController(ref);
+  },
+);
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController(this.ref) : super(const AuthState()) {
+  AuthController(this.ref, this._dio) : super(const AuthState()) {
     _bootstrap();
     ApiClient().onUnauthorized = _handleUnauthorized;
   }
   final Ref ref;
+  final _store = const FlutterSecureStorage();
+  final Dio _dio;
 
   /// On app start, if we already have a token → mark authenticated and load profile.
   Future<void> _bootstrap() async {
@@ -103,8 +108,9 @@ class AuthController extends StateNotifier<AuthState> {
     final phone = state.phone!;
     state = state.copyWith(loading: true, error: null);
     try {
-      final token =
-      await ref.read(authRepoProvider).verify(phone: phone, otp: otp);
+      final token = await ref
+          .read(authRepoProvider)
+          .verify(phone: phone, otp: otp);
 
       // IMPORTANT: Save token before any follow-up calls
       await ApiClient().saveToken(token);
@@ -144,15 +150,82 @@ class AuthController extends StateNotifier<AuthState> {
       final phone = state.phone ?? '9xxxxxxx';
       // You can also persist "name/role" server-side and fetch them.
       final user = AppUser(
-        id: 'self',              // replace with real id
-        name: 'مستخدم محاصيل',   // replace with server name
+        id: 'self', // replace with real id
+        name: 'مستخدم محاصيل', // replace with server name
         phone: phone,
-        role: 'seller',          // replace with server role
+        role: 'seller', // replace with server role
       );
       state = state.copyWith(user: user);
     } catch (_) {
       // If profile fails, keep authenticated but no user (UI should handle nulls safely).
       state = state.copyWith(user: null);
     }
+  }
+
+  Future<void> loginWithGoogle() async {
+    final gs = GoogleSignIn(scopes: ['email', 'profile']);
+    final acc = await gs.signIn();
+    final auth = await acc?.authentication;
+    final idToken = auth?.idToken;
+    if (idToken == null) throw Exception('No Google ID token');
+    final res = await _dio.post(
+      '/auth/social/google',
+      data: {'token': idToken},
+    );
+    final temp = res.data['access_token'] as String;
+    await _store.write(key: 'token', value: temp);
+  }
+
+  Future<void> loginWithFacebook() async {
+    final result = await FacebookAuth.instance.login(
+      permissions: ['public_profile', 'email'],
+    );
+    if (result.status != LoginStatus.success)
+      throw Exception('FB login cancelled');
+    final accessToken = result.accessToken!.token;
+    final res = await _dio.post(
+      '/auth/social/facebook',
+      data: {'token': accessToken},
+    );
+    final temp = res.data['access_token'] as String;
+    await _store.write(key: 'token', value: temp);
+  }
+
+  Future<Map<String, dynamic>> me() async {
+    final t = await _store.read(key: 'token');
+    if (t == null) throw Exception('no token');
+    final r = await _dio.get(
+      '/auth/me',
+      options: Options(headers: {'Authorization': 'Bearer $t'}),
+    );
+    return Map<String, dynamic>.from(r.data);
+  }
+
+  Future<void> linkPhone(String phone) async {
+    final t = await _store.read(key: 'token');
+    final r = await _dio.post(
+      '/auth/link-phone',
+      data: {'phone': phone},
+      options: Options(headers: {'Authorization': 'Bearer $t'}),
+    );
+    // show r.data['code'] in dev
+  }
+
+  Future<void> verifyOtp(String phone, String code) async {
+    final t = await _store.read(key: 'token');
+    final r = await _dio.post(
+      '/auth/verify-otp',
+      data: {'phone': phone, 'code': code},
+      options: Options(headers: {'Authorization': 'Bearer $t'}),
+    );
+    final full = r.data['access_token'] as String;
+    await _store.write(key: 'token', value: full);
+  }
+
+  Future<bool> isFullyAuthed() async {
+    final t = await _store.read(key: 'token');
+    if (t == null) return false;
+    final payload = Jwt.parseJwt(t);
+    return payload['scope'] == 'user';
   }
 }

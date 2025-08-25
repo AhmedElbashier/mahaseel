@@ -16,7 +16,6 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'core/app_config.dart';
 import 'core/debug/riverpod_observer.dart';
 import 'features/auth/state/auth_controller.dart';
-import 'features/settings/state/settings_controller.dart';
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
@@ -46,7 +45,6 @@ Future<void> main() async {
   };
 
   final container = ProviderContainer(observers: [SimpleLogger()]);
-  final authControllerProvider =
   StateNotifierProvider<AuthController, AuthState>((ref) {
     return AuthController(ref);
   });
@@ -68,7 +66,6 @@ class MahaseelApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
-    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,

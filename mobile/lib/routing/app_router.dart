@@ -19,27 +19,36 @@ import '../features/settings/screens/settings_screen.dart';
 import '../features/support/screens/support_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
+
+// Expose: are we authenticated?
 final isAuthenticatedProvider = Provider<bool>((ref) {
   final authState = ref.watch(authControllerProvider);
   return authState.isAuthenticated;
 });
 
+// Two navigator keys:
+// - _rootKey: the app-wide root navigator (outside the shell)
+// - _shellKey: the shell's internal navigator (for tabbed content)
+final _rootKey = GlobalKey<NavigatorState>();
+final _shellKey = GlobalKey<NavigatorState>();
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   final isAuthed = ref.watch(isAuthenticatedProvider);
 
   return GoRouter(
-    // Start at "/" — redirect will send unauth users to /login automatically.
+    navigatorKey: _rootKey,
+    // Start at "/" — redirect below will move unauth users to /login.
     initialLocation: '/',
 
     routes: [
-      // ---------- Auth-only routes ----------
+      // ------------------- PUBLIC/AUTH FLOW -------------------
       GoRoute(
         path: '/',
         pageBuilder: (ctx, st) => CustomTransitionPage(
           key: st.pageKey,
           child: const WelcomeScreen(),
           transitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          transitionsBuilder: (context, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),
         ),
       ),
@@ -49,7 +58,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           key: st.pageKey,
           child: const LoginPhoneScreen(),
           transitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          transitionsBuilder: (context, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),
         ),
       ),
@@ -57,36 +66,40 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/otp',
         pageBuilder: (ctx, st) => CustomTransitionPage(
           key: st.pageKey,
-          child: OtpScreen(
-            phone: st.uri.queryParameters['phone'] ?? '',
-          ),
+          child: OtpScreen(phone: st.uri.queryParameters['phone'] ?? ''),
           transitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          transitionsBuilder: (context, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),
         ),
       ),
 
-      // ---------- App shell (bottom navigation + app bar) ----------
+      // ------------------- SHELL (BOTTOM NAV) -------------------
+      // Only the 4 tabs live inside the shell.
       ShellRoute(
+        navigatorKey: _shellKey,
         builder: (context, state, child) {
           final here = GoRouterState.of(context).uri.toString();
-          String title = 'محاصيل'; // default
 
+          // Title per section (Arabic defaults).
+          String title = 'محاصيل';
           if (here.startsWith('/crops/add')) title = 'إضافة محصول';
           if (here.startsWith('/crops/')) title = 'تفاصيل المحصول';
           if (here.startsWith('/support')) title = 'الدعم الفني';
           if (here.startsWith('/settings')) title = 'الإعدادات';
-          if (here.startsWith('/notifications')) title = 'الإشعارات';
-          if (here.startsWith('/profile')) title = 'الملف الشخصي';
+          // NOTE: notifications/profile are not in the shell anymore.
 
-
+          // Map current route -> one of the 4 tab indices (0..3)
+          // IMPORTANT: Never return 4 or 5 here since the bar has 4 tabs.
           int index = 0;
-          if (here.startsWith('/crops/add')) index = 1;
-          else if (here.startsWith('/support')) index = 2;
-          else if (here.startsWith('/settings')) index = 3;
-          else if (here.startsWith('/notifications')) index = 4;
-          else if (here.startsWith('/profile')) index = 5;
-          else index = 0; // home & crops routes
+          if (here.startsWith('/crops/add')) {
+            index = 1;
+          } else if (here.startsWith('/support')) {
+            index = 2;
+          } else if (here.startsWith('/settings')) {
+            index = 3;
+          } else {
+            index = 0; // '/home' and '/crops' stay on tab 0
+          }
 
           void onNav(int idx) {
             switch (idx) {
@@ -102,11 +115,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               case 3:
                 context.go('/settings');
                 break;
-              case 4:
-                context.go('/notifications');
-                break;
-              case 5:
-                context.go('/profile');
             }
           }
 
@@ -147,16 +155,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const SupportScreen(),
           ),
           GoRoute(
-            path: '/notifications',
-            name: 'notifications',
-            builder: (context, state) => const NotificationsScreen(),
-          ),
-          GoRoute(
-            path: '/profile',
-            name: 'profile',
-            builder: (context, state) => const ProfileScreen(),
-          ),
-          GoRoute(
             path: '/settings',
             name: 'settings',
             builder: (_, __) => const SettingsScreen(),
@@ -164,26 +162,41 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/map-picker',
             name: 'map_picker',
-            builder: (context, state) => const MapPickerScreen(),
+            builder: (_, __) => const MapPickerScreen(),
           ),
         ],
       ),
+
+      // ------------------- TOP-LEVEL OVERLAYS -------------------
+      // These are OUTSIDE the shell and will be pushed on top (no tab index change).
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        builder: (_, __) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/profile',
+        name: 'profile',
+        builder: (_, __) => const ProfileScreen(),
+      ),
     ],
 
-    // ---------- Redirect rules (auth gate) ----------
-    // ❗ Keep this PURE: READ ONLY. No writes/bootstraps here.
+    // ------------------- REDIRECTS (AUTH GATE) -------------------
+    // Keep this pure: only read state, don't do side effects here.
     redirect: (ctx, st) {
       final here = st.matchedLocation;
       final isAuthFlow = here == '/login' || here.startsWith('/otp');
       final isWelcome  = here == '/';
 
+      // Any route that requires auth?
       final isShellRoute = here.startsWith('/home') ||
           here.startsWith('/crops') ||
           here.startsWith('/support') ||
           here.startsWith('/settings') ||
+          here.startsWith('/map-picker') ||
+          // overlays also require auth
           here.startsWith('/notifications') ||
           here.startsWith('/profile');
-
 
       if (!isAuthed && isShellRoute) {
         return '/login';

@@ -20,6 +20,10 @@
     <meta-data
       android:name="flutterEmbedding"
       android:value="2" />
+    <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
+    <provider android:authorities="${applicationId}.facebook-init"
+            android:name="com.facebook.internal.FacebookInitProvider"
+            android:exported="false" />
 
     <activity
       android:name=".MainActivity"

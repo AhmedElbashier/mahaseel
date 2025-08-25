@@ -9,7 +9,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('plugins.flutter.io/firebase_crashlytics');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(channel, (method) async {});
+      .setMockMethodCallHandler(channel, (method) async {
+        return null;
+      });
 
   late Directory dir;
   late RetryQueue queue;

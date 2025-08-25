@@ -20,12 +20,14 @@ from app.observability import RequestLogMiddleware
 from app.core.config import settings
 from app.core.logging_conf import configure_logging
 from app.routes.auth import router as auth_router
+from app.routes.auth_me import router as auth_me_router
 from app.routes.crops import router as crops_router
 from app.routes.media import router as media_router
 from app.routes.contact import router as contact_router
 from app.routes.admin import router as admin_routes
 from app.routes.ratings import router as rating_routes
 from app.routes.orders import router as order_routes
+from app.routes.auth_social import router as auth_social_router
 
 from app.api.deps import get_current_user
 
@@ -64,20 +66,13 @@ add_rate_limiting(app)
 add_error_handlers(app)
 
 # routes
-app.include_router(admin_routes)
 app.include_router(auth_router)
+app.include_router(auth_me_router)
+app.include_router(admin_routes)
 app.include_router(crops_router)
 app.include_router(media_router)
 app.include_router(contact_router)
 app.include_router(rating_routes)
 app.include_router(order_routes)
+app.include_router(auth_social_router)
 
-
-@app.get("/me", tags=["auth"])
-def me(user=Depends(get_current_user)):
-    return {
-        "id": user.id,
-        "name": user.name,
-        "phone": user.phone,
-        "role": user.role.value,
-    }

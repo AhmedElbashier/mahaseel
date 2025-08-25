@@ -53,7 +53,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
     final settingsState = ref.watch(settingsControllerProvider);
 
     return Scaffold(

@@ -8,9 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../state/crops_controller.dart';
-import '../data/crops_repo.dart';
 import '../data/location.dart';
-import '../../location/map_picker_screen.dart';
 
 class AddCropScreen extends ConsumerStatefulWidget {
   const AddCropScreen({super.key});

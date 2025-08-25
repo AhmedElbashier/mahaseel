@@ -61,15 +61,15 @@ class HomeShell extends StatelessWidget {
             size: 24,
           ),
           actions: [
-            // Modern notification bell
+            // Notifications is an overlay route (top-level). Use push.
             IconButton(
               onPressed: () {
-                context.go("notifications");
+                context.push('/notifications');
               },
               icon: Badge(
                 smallSize: 8,
                 backgroundColor: Colors.red.shade400,
-                child: Icon(Icons.notifications_outlined),
+                child: const Icon(Icons.notifications_outlined),
               ),
               tooltip: 'الإشعارات',
             ),
@@ -143,17 +143,17 @@ class HomeShell extends StatelessWidget {
         ),
 
         // Floating action button for quick actions
-        floatingActionButton: currentIndex == 0
-            ? FloatingActionButton.extended(
-          onPressed: () => onTabSelected(1),
-          icon: Icon(Icons.add_rounded),
-          label: Text('إضافة محصول'),
-          backgroundColor: colorScheme.primaryContainer,
-          foregroundColor: colorScheme.onPrimaryContainer,
-          elevation: 6,
-        )
-            : null,
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        // floatingActionButton: currentIndex == 0
+        //     ? FloatingActionButton.extended(
+        //   onPressed: () => onTabSelected(1),
+        //   icon: Icon(Icons.add_rounded),
+        //   label: Text('إضافة محصول'),
+        //   backgroundColor: colorScheme.primaryContainer,
+        //   foregroundColor: colorScheme.onPrimaryContainer,
+        //   elevation: 6,
+        // )
+        //     : null,
+        // floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
     );
   }

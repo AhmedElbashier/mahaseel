@@ -65,6 +65,9 @@ dependencies:
   http_parser: ^4.1.2
   flutter_rating_bar: ^4.0.1
   lottie: ^3.1.0
+  google_sign_in: ^7.1.1
+  flutter_facebook_auth: ^7.1.2
+  jwt_decode: ^0.3.1
 
 dev_dependencies:
   flutter_test:

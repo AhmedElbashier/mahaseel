@@ -16,7 +16,7 @@ class _FailingRatingsRepo implements RatingsRepo {
 }
 
 class _TestWidget extends ConsumerStatefulWidget {
-  const _TestWidget({super.key});
+  const _TestWidget();
 
   @override
   ConsumerState<_TestWidget> createState() => _TestWidgetState();

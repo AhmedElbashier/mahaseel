@@ -5,6 +5,15 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
+import java.io.FileInputStream
+import java.util.Properties
+
+// Read signing props from android/key.properties (or from env vars on CI)
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("android/key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
 
 android {
     namespace = "com.mahaseel.app"
@@ -15,30 +24,48 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
+    kotlinOptions { jvmTarget = JavaVersion.VERSION_11.toString() }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.mahaseel.app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         manifestPlaceholders += mapOf(
-          "MAPS_API_KEY" to (System.getenv("MAPS_API_KEY") ?: "AIzaSyAegFmQ5xQqRKegRohcTUSsFj8a8u2WX1o")
+            "MAPS_API_KEY" to (System.getenv("MAPS_API_KEY") ?: "AIzaSyAegFmQ5xQqRKegRohcTUSsFj8a8u2WX1o")
         )
     }
 
+    // ---- signing (release) ----
+    signingConfigs {
+        create("release") {
+            val storeFilePath = (keystoreProperties["storeFile"] as String?)
+                ?: System.getenv("STORE_FILE")
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+            }
+            keyAlias = (keystoreProperties["keyAlias"] as String?)
+                ?: System.getenv("KEY_ALIAS")
+            keyPassword = (keystoreProperties["keyPassword"] as String?)
+                ?: System.getenv("KEY_PASSWORD")
+            storePassword = (keystoreProperties["storePassword"] as String?)
+                ?: System.getenv("STORE_PASSWORD")
+        }
+    }
+
     buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("release") {
+            // use the real release keystore (no more debug signing)
+            signingConfig = signingConfigs.getByName("release")
+
+            // shrink/obfuscate
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }

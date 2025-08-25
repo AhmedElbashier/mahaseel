@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/rating_summary.dart';
-import '../data/ratings_repo.dart';
 import 'providers.dart';
 
 // lib/features/ratings/state/ratings_controller.dart

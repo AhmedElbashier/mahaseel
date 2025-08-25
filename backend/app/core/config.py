@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_minutes: int = 60
 
+    google_client_id: str = ""    
+    fb_app_id: str = ""
+    fb_app_secret: str = ""
+
+    
     # Local default (host-run)
     database_url: str = "postgresql+psycopg://mahaseel:mahaseel@localhost:5432/mahaseel"
 

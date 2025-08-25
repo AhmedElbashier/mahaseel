@@ -1,4 +1,3 @@
-// Details + Gallery + WhatsApp + Share + Ratings + Map (no inner Scaffold)
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -13,10 +12,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../orders/data/orders_repo.dart';
-import '../../ratings/state/providers.dart';   // ratings providers (uses ApiClient().dio under the hood)
+import '../../ratings/state/providers.dart';
 import '../models/crop.dart';
 import '../data/location.dart';
-import '../state/providers.dart';             // cropsRepoProvider
+import '../state/crops_controller.dart';
 
 class CropDetailsScreen extends ConsumerStatefulWidget {
   final int id;
@@ -30,6 +29,8 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
   late Future<Crop> _future;
   int? _loadedSummaryForSeller;
   bool _locationGranted = false;
+  final PageController _pageController = PageController();
+  int _currentImageIndex = 0;
 
   @override
   void initState() {
@@ -41,22 +42,26 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // بعد أول فريم، حمّل ملخص تقييم البائع مرة واحدة (لنفس البائع)
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       try {
         final crop = await _future;
         if (!mounted) return;
         if (_loadedSummaryForSeller != crop.sellerId) {
           _loadedSummaryForSeller = crop.sellerId;
-          debugPrint('🔔 post-frame: loadSummary(${crop.sellerId})');
           unawaited(
             ref.read(ratingsControllerProvider.notifier).loadSummary(crop.sellerId),
           );
         }
       } catch (e) {
-        // ignore: we’ll show the FutureBuilder error
+        // Handle error silently
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _requestLocationPermission() async {
@@ -72,8 +77,13 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
   }
 
   void _share(Crop c) {
-    final text =
-        'محصول: ${c.name}\nالسعر: ${c.price}/${c.unit}\nالموقع: ${c.location.state ?? ''} ${c.location.locality ?? ''}';
+    final text = '''
+🌾 محصول: ${c.name}
+💰 السعر: ${c.price}/${c.unit}
+📍 الموقع: ${c.location.state ?? ''} ${c.location.locality ?? ''}
+👤 البائع: ${c.sellerName ?? 'غير محدد'}
+${c.notes?.isNotEmpty == true ? '\n📝 ملاحظات: ${c.notes}' : ''}
+    '''.trim();
     Share.share(text);
   }
 
@@ -82,14 +92,24 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
     final phone = raw.replaceAll(RegExp(r'[^\d]'), '');
     if (phone.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('رقم البائع غير متوفر')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text('رقم البائع غير متوفر'),
+            ],
+          ),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
       return;
     }
 
     final text = Uri.encodeComponent('مرحبا ${c.sellerName ?? ''}، أنا مهتم بمحصول ${c.name}.');
     final deepLink = Uri.parse('whatsapp://send?phone=$phone&text=$text');
-    final webLink  = Uri.parse('https://wa.me/$phone?text=$text');
+    final webLink = Uri.parse('https://wa.me/$phone?text=$text');
 
     try {
       if (await canLaunchUrl(deepLink) &&
@@ -118,7 +138,7 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
 
   Future<void> _openNativeMap(LocationData loc) async {
     final lat = loc.lat, lng = loc.lng;
-    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng'); // Android
+    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
     final webUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
     try {
       if (await canLaunchUrl(geoUri)) {
@@ -131,183 +151,671 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
       }
     } catch (_) {}
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('تعذّر فتح تطبيق الخرائط')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تعذّر فتح تطبيق الخرائط')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Crop>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snap.hasError || !snap.hasData) {
-          return Center(child: Text('خطأ في التحميل: ${snap.error}'));
-        }
+    final theme = Theme.of(context);
 
-        final c = snap.data!;
-        final ratingsState = ref.watch(ratingsControllerProvider);
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+      body: FutureBuilder<Crop>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return _buildLoadingState();
+          }
+          if (snap.hasError || !snap.hasData) {
+            return _buildErrorState(snap.error.toString());
+          }
 
-        // ---------- Gallery ----------
-        final List<String> gallery = c.images;
-        final fallbackUrl = c.imageUrl;
-        Widget galleryWidget;
-        if (gallery.isNotEmpty) {
-          galleryWidget = SizedBox(
-            height: 220,
-            child: PageView(
-              children: [
-                for (final url in gallery)
-                  ClipRRect(
+          final c = snap.data!;
+          return _buildCropDetails(c, theme);
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 300,
+          pinned: true,
+          backgroundColor: Colors.grey.shade300,
+          flexibleSpace: const FlexibleSpaceBar(
+            background: Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        ),
+        SliverFillRemaining(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: List.generate(
+                5,
+                    (index) => Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Container(color: Colors.grey.shade200),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('خطأ'),
+        backgroundColor: theme.colorScheme.error,
+        foregroundColor: theme.colorScheme.onError,
+      ),
+      body: Center(
+        child: Container(
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: theme.colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'خطأ في التحميل',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                error,
+                style: theme.textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => context.canPop() ? context.pop() : context.go('/crops'),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('العودة'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCropDetails(Crop c, ThemeData theme) {
+    final ratingsState = ref.watch(ratingsControllerProvider);
+    final List<String> gallery = c.images;
+    final fallbackUrl = c.imageUrl;
+
+    List<String> allImages = [];
+    if (gallery.isNotEmpty) {
+      allImages = gallery;
+    } else if (fallbackUrl != null) {
+      allImages = [fallbackUrl];
+    }
+
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 300,
+          pinned: true,
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
+          flexibleSpace: FlexibleSpaceBar(
+            background: _buildImageGallery(allImages, theme),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.share),
+              onPressed: () => _share(c),
+            ),
+          ],
+        ),
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCropHeader(c, theme),
+                const SizedBox(height: 24),
+                _buildSellerCard(c, theme),
+                const SizedBox(height: 24),
+                _buildRatingSection(ratingsState, c, theme),
+                const SizedBox(height: 24),
+                _buildPurchaseSection(c, theme),
+                const SizedBox(height: 24),
+                _buildMapSection(c, theme),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageGallery(List<String> images, ThemeData theme) {
+    if (images.isEmpty) {
+      return Container(
+        color: theme.colorScheme.surfaceVariant,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_not_supported,
+                size: 64,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'لا توجد صور',
+                style: TextStyle(
+                  color: theme.colorScheme.outline,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() {
+              _currentImageIndex = index;
+            });
+          },
+          itemCount: images.length,
+          itemBuilder: (context, index) {
+            return Image.network(
+              images[index],
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  color: theme.colorScheme.surfaceVariant,
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              },
+              errorBuilder: (_, __, ___) => Container(
+                color: theme.colorScheme.surfaceVariant,
+                child: Icon(
+                  Icons.broken_image,
+                  size: 64,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            );
+          },
+        ),
+        if (images.length > 1) ...[
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    '${_currentImageIndex + 1} من ${images.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-              ],
-            ),
-          );
-        } else if (fallbackUrl != null) {
-          galleryWidget = ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              fallbackUrl,
-              height: 220,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(height: 160, color: Colors.grey.shade200),
-            ),
-          );
-        } else {
-          galleryWidget = Container(
-            height: 160,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text('لا توجد صور'),
-          );
-        }
-
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => context.canPop() ? context.pop() : context.go('/crops'),
                 ),
-                const SizedBox(width: 8),
-                Text('تفاصيل المحصول', style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
-            const SizedBox(height: 8),
-
-            galleryWidget,
-            const SizedBox(height: 16),
-
-            Text(c.name, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 6),
-            Text('${c.price} / ${c.unit}', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text('النوع: ${c.type} • الكمية: ${c.qty} ${c.unit}'),
-            const SizedBox(height: 12),
-            if (c.notes != null && c.notes!.isNotEmpty) Text(c.notes!),
-            const SizedBox(height: 16),
-
-            // Seller card
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const CircleAvatar(child: Icon(Icons.person)),
-              title: Text(c.sellerName ?? 'البائع'),
-              subtitle: Text(c.sellerPhone ?? '—'),
-              trailing: (c.sellerPhone?.trim().isNotEmpty ?? false)
-                  ? FilledButton.icon(
-                onPressed: () => _openWhatsApp(c),
-                icon: const Icon(Icons.chat),
-                label: const Text('واتساب'),
-              )
-                  : null,
-            ),
-
-            // ---------- Ratings ----------
-            const SizedBox(height: 8),
-            if (ratingsState.loading) const LinearProgressIndicator(),
-            if (!ratingsState.loading && ratingsState.error?.isNotEmpty == true)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(ratingsState.error!, style: const TextStyle(color: Colors.red)),
+          ),
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                images.length,
+                    (index) => Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentImageIndex == index
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.4),
+                  ),
+                ),
               ),
-            const SizedBox(height: 8),
-            _RatingSummaryRow(
-              avg: ratingsState.summary?.avg ?? 0,
-              count: ratingsState.summary?.count ?? 0,
             ),
-            const SizedBox(height: 12),
+          ),
+        ],
+      ],
+    );
+  }
 
-            _RateSellerBar(
-              initialStars: ref.watch(ratingsControllerProvider).myStars,        // NEW
-              disabled: ref.watch(ratingsControllerProvider).alreadyRated,       // NEW
-              onRated: (stars) async {
-                final ok = await ref
-                    .read(ratingsControllerProvider.notifier)
-                    .rateSeller(sellerId: c.sellerId, stars: stars, cropId: c.id);
-
-                if (!mounted) return;
-
-                final notice = ref.read(ratingsControllerProvider).error; // we used `error` as notice
-                if (ok) {
-                  // Show specific message depending on what controller set
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(notice?.isNotEmpty == true ? notice! : 'شكراً على تقييمك!')),
-                  );
-                } else if (notice != null && notice.isNotEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(notice)));
-                } else {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(const SnackBar(content: Text('تعذّر إرسال التقييم')));
-                }
-              },
+  Widget _buildCropHeader(Crop c, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.name,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        c.type,
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '${c.price}',
+                      style: TextStyle(
+                        color: theme.colorScheme.onPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'جنيه/${c.unit}',
+                      style: TextStyle(
+                        color: theme.colorScheme.onPrimary.withOpacity(0.8),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Icon(
+                Icons.inventory,
+                size: 16,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'الكمية المتاحة: ${c.qty} ${c.unit}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          if (c.notes != null && c.notes!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.notes,
+                        size: 16,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ملاحظات',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    c.notes!,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+              ),
             ),
+          ],
+        ],
+      ),
+    );
+  }
 
+  Widget _buildSellerCard(Crop c, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.person,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'معلومات البائع',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.person_outline,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.sellerName ?? 'البائع',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (c.sellerPhone != null && c.sellerPhone!.isNotEmpty)
+                      Text(
+                        c.sellerPhone!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (c.sellerPhone?.trim().isNotEmpty ?? false)
+                FilledButton.icon(
+                  onPressed: () => _openWhatsApp(c),
+                  icon: const Icon(Icons.chat),
+                  label: const Text('واتساب'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 8),
+  Widget _buildRatingSection(dynamic ratingsState, Crop c, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.star,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'تقييم البائع',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (ratingsState.loading) const LinearProgressIndicator(),
+          if (!ratingsState.loading && ratingsState.error?.isNotEmpty == true)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                ratingsState.error!,
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ),
+          const SizedBox(height: 16),
+          _RatingSummaryRow(
+            avg: ratingsState.summary?.avg ?? 0,
+            count: ratingsState.summary?.count ?? 0,
+          ),
+          const SizedBox(height: 20),
+          _RateSellerBar(
+            initialStars: ref.watch(ratingsControllerProvider).myStars,
+            disabled: ref.watch(ratingsControllerProvider).alreadyRated,
+            onRated: (stars) async {
+              final ok = await ref
+                  .read(ratingsControllerProvider.notifier)
+                  .rateSeller(sellerId: c.sellerId, stars: stars, cropId: c.id);
 
-            // Intent to buy
-            ElevatedButton.icon(
+              if (!mounted) return;
+
+              final notice = ref.read(ratingsControllerProvider).error;
+              if (ok) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Text(notice?.isNotEmpty == true ? notice! : 'شكراً على تقييمك!'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else if (notice != null && notice.isNotEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Text(notice),
+                      ],
+                    ),
+                    backgroundColor: theme.colorScheme.error,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('تعذّر إرسال التقييم'),
+                      ],
+                    ),
+                    backgroundColor: theme.colorScheme.error,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPurchaseSection(Crop c, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.shopping_cart,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'طلب شراء',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
               onPressed: () async {
                 final qty = await showDialog<double?>(
                   context: context,
-                  builder: (ctx) {
-                    final controller = TextEditingController(text: '1');
-                    return AlertDialog(
-                      title: const Text('أدخل الكمية'),
-                      content: TextField(
-                        controller: controller,
-                        keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(hintText: 'مثال: 1.0'),
-                        textDirection: TextDirection.ltr,
-                      ),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('إلغاء')),
-                        FilledButton(
-                          onPressed: () {
-                            final val = double.tryParse(controller.text.trim());
-                            Navigator.pop(ctx, val);
-                          },
-                          child: const Text('تأكيد'),
-                        ),
-                      ],
-                    );
-                  },
+                  builder: (ctx) => _buildQuantityDialog(ctx, theme),
                 );
 
                 if (qty == null) return;
@@ -316,68 +824,206 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
                   final repo = OrdersRepo();
                   final order = await repo.createOrder(c.id, qty);
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text('تم إرسال طلب شراء #${order.id}')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text('تم إرسال طلب شراء #${order.id}'),
+                        ],
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                 } catch (e) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(const SnackBar(content: Text('تعذّر إرسال الطلب')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text('تعذّر إرسال الطلب'),
+                        ],
+                      ),
+                      backgroundColor: theme.colorScheme.error,
+                    ),
+                  );
                 }
               },
               icon: const Icon(Icons.shopping_cart),
               label: const Text('أرسل طلب شراء'),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Map preview
-            SizedBox(
-              height: 200,
-              child: GestureDetector(
-                onTap: () => _openNativeMap(c.location),
-                child: ClipRRect(
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  child: GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: LatLng(c.location.lat, c.location.lng),
-                      zoom: 14,
-                    ),
-                    markers: {
-                      Marker(
-                        markerId: MarkerId('crop_${c.id}'),
-                        position: LatLng(c.location.lat, c.location.lng),
-                        infoWindow: InfoWindow(title: c.name),
-                        onTap: () => _openNativeMap(c.location),
-                      ),
-                    },
-                    myLocationEnabled: _locationGranted,
-                    liteModeEnabled: true,
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                    tiltGesturesEnabled: false,
-                    onTap: (LatLng _) => _openNativeMap(c.location),
-                  ),
                 ),
               ),
             ),
-            if (!_locationGranted)
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text(
-                  'لم يتم منح إذن الموقع، لن يتم عرض موقعك على الخريطة',
-                  style: TextStyle(fontSize: 12, color: Colors.red),
-                ),
-              ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => _share(c),
-              icon: const Icon(Icons.share),
-              label: const Text('مشاركة'),
+  Widget _buildQuantityDialog(BuildContext ctx, ThemeData theme) {
+    final controller = TextEditingController(text: '1');
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        title: const Text('أدخل الكمية المطلوبة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                hintText: 'مثال: 1.0',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                prefixIcon: const Icon(Icons.scale),
+              ),
+              textDirection: TextDirection.ltr,
+              autofocus: true,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'الكمية المتاحة: ${ref.read(cropsControllerProvider).items.firstWhere((crop) => crop.id == widget.id).qty}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final val = double.tryParse(controller.text.trim());
+              Navigator.pop(ctx, val);
+            },
+            child: const Text('تأكيد'),
+          ),
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapSection(Crop c, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.location_on,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'الموقع',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (c.location.state != null || c.location.locality != null) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.place,
+                  size: 16,
+                  color: theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${c.location.state ?? ''} ${c.location.locality ?? ''}'.trim(),
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              height: 200,
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: LatLng(c.location.lat, c.location.lng),
+                  zoom: 14,
+                ),
+                markers: {
+                  Marker(
+                    markerId: MarkerId('crop_${c.id}'),
+                    position: LatLng(c.location.lat, c.location.lng),
+                    infoWindow: InfoWindow(title: c.name),
+                    onTap: () => _openNativeMap(c.location),
+                  ),
+                },
+                myLocationEnabled: _locationGranted,
+                liteModeEnabled: true,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                tiltGesturesEnabled: false,
+                onTap: (LatLng _) => _openNativeMap(c.location),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _openNativeMap(c.location),
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('فتح في خرائط جوجل'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          if (!_locationGranted)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'لم يتم منح إذن الموقع، لن يتم عرض موقعك على الخريطة',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -389,28 +1035,66 @@ class _RatingSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     if (count == 0) {
-      return Row(
-        children: const [
-          Icon(Icons.star_border),
-          SizedBox(width: 8),
-          Text('لا يوجد تقييمات بعد'),
-        ],
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.star_border,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'لا يوجد تقييمات بعد',
+              style: TextStyle(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       );
     }
 
-    return Row(
-      children: [
-        RatingBarIndicator(
-          rating: avg,
-          itemBuilder: (context, _) => const Icon(Icons.star),
-          itemSize: 22,
-        ),
-        const SizedBox(width: 8),
-        Text('${avg.toStringAsFixed(1)} / 5'),
-        const SizedBox(width: 8),
-        Text('($count تقييم)'),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          RatingBarIndicator(
+            rating: avg,
+            itemBuilder: (context, _) => Icon(
+              Icons.star,
+              color: theme.colorScheme.primary,
+            ),
+            itemSize: 24,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${avg.toStringAsFixed(1)} من 5',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '($count تقييم)',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -418,7 +1102,13 @@ class _RatingSummaryRow extends StatelessWidget {
 class _RateSellerBar extends StatefulWidget {
   final void Function(int stars) onRated;
   final bool disabled;
-  const _RateSellerBar({required this.onRated, this.disabled = false, int? initialStars,});
+  final int? initialStars;
+
+  const _RateSellerBar({
+    required this.onRated,
+    this.disabled = false,
+    this.initialStars,
+  });
 
   @override
   State<_RateSellerBar> createState() => _RateSellerBarState();
@@ -428,13 +1118,27 @@ class _RateSellerBarState extends State<_RateSellerBar> {
   double _current = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _current = widget.initialStars?.toDouble() ?? 0;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final disabled = widget.disabled;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('قيّم البائع', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        Text(
+          'قيّم هذا البائع',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
         IgnorePointer(
           ignoring: disabled,
           child: Opacity(
@@ -444,20 +1148,33 @@ class _RateSellerBarState extends State<_RateSellerBar> {
               minRating: 1,
               maxRating: 5,
               allowHalfRating: false,
-              itemBuilder: (context, _) => const Icon(Icons.star),
+              itemBuilder: (context, _) => Icon(
+                Icons.star,
+                color: theme.colorScheme.primary,
+              ),
               itemSize: 32,
               onRatingUpdate: (val) => setState(() => _current = val),
               updateOnDrag: true,
+              glowColor: theme.colorScheme.primary.withOpacity(0.2),
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        ElevatedButton.icon(
-          onPressed: disabled || _current == 0
-              ? null
-              : () => widget.onRated(_current.toInt()),
-          icon: const Icon(Icons.send),
-          label: const Text('إرسال التقييم'),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: disabled || _current == 0
+                ? null
+                : () => widget.onRated(_current.toInt()),
+            icon: const Icon(Icons.send),
+            label: Text(disabled ? 'تم التقييم' : 'إرسال التقييم'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
         ),
       ],
     );
