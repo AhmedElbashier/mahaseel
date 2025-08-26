@@ -1,4 +1,0 @@
-storePassword=Mahaseel@123Root#
-keyPassword=Mahaseel@123Root#
-keyAlias=mahaseel
-storeFile=android/app/keystore/mahaseel-release-key.jks

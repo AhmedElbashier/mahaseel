@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,15 +8,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
-import java.io.FileInputStream
-import java.util.Properties
+
 
 // Read signing props from android/key.properties (or from env vars on CI)
 val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("android/key.properties")
+val keystorePropertiesFile = rootProject.file("/key.properties")
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
 }
+println(">>> key.props path = ${keystorePropertiesFile.absolutePath}, exists=${keystorePropertiesFile.exists()}")
+println(">>> storeFile from props = ${keystoreProperties.getProperty("storeFile")}")
+
+
 
 android {
     namespace = "com.mahaseel.app"
@@ -38,36 +44,35 @@ android {
     }
 
     // ---- signing (release) ----
-    signingConfigs {
-        create("release") {
-            val storeFilePath = (keystoreProperties["storeFile"] as String?)
-                ?: System.getenv("STORE_FILE")
-            if (storeFilePath != null) {
-                storeFile = file(storeFilePath)
-            }
-            keyAlias = (keystoreProperties["keyAlias"] as String?)
-                ?: System.getenv("KEY_ALIAS")
-            keyPassword = (keystoreProperties["keyPassword"] as String?)
-                ?: System.getenv("KEY_PASSWORD")
-            storePassword = (keystoreProperties["storePassword"] as String?)
-                ?: System.getenv("STORE_PASSWORD")
-        }
-    }
+signingConfigs {
+    create("release") {
+        val storeFilePath = (keystoreProperties["storeFile"] as String?)
+        require(!storeFilePath.isNullOrBlank()) { "Missing storeFile in android/key.properties" }
+        storeFile = file(storeFilePath)
 
-    buildTypes {
-        getByName("release") {
-            // use the real release keystore (no more debug signing)
-            signingConfig = signingConfigs.getByName("release")
+        keyAlias = (keystoreProperties["keyAlias"] as String?)
+        require(!keyAlias.isNullOrBlank()) { "Missing keyAlias in android/key.properties" }
 
-            // shrink/obfuscate
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
+        storePassword = (keystoreProperties["storePassword"] as String?)
+        require(!storePassword.isNullOrBlank()) { "Missing storePassword in android/key.properties" }
+
+        keyPassword = (keystoreProperties["keyPassword"] as String?)
+        require(!keyPassword.isNullOrBlank()) { "Missing keyPassword in android/key.properties" }
     }
+}
+
+
+buildTypes {
+    getByName("release") {
+        signingConfig = signingConfigs.getByName("release")
+        isMinifyEnabled = false
+        isShrinkResources = false
+        proguardFiles(
+            getDefaultProguardFile("proguard-android-optimize.txt"),
+            "proguard-rules.pro"
+        )
+    }
+}
 }
 
 flutter {

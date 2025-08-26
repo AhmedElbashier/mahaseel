@@ -1,2 +1,10 @@
-<string name="facebook_app_id">0ac3be6672f07fbcdce85d9a75fb61eb</string>
-<string name="fb_login_protocol_scheme">1050015280353325</string>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">Mahaseel</string>
+
+    <!-- Facebook Login (must be inside <resources>) -->
+    <!-- facebook_app_id must be NUMERIC; fb_login_protocol_scheme must start with "fb" + app id -->
+    <string name="facebook_app_id">1050015280353325</string>
+    <string name="fb_login_protocol_scheme">fb1050015280353325</string>
+</resources>
