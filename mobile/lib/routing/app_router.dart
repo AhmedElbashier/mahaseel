@@ -3,208 +3,143 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-// Auth & Screens
+import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/welcome_screen.dart';
+import '../features/auth/screens/login_options_screen.dart';
 import '../features/auth/screens/login_phone_screen.dart';
+import '../features/auth/screens/signup_options_screen.dart';
+import '../features/auth/screens/signup_phone_screen.dart';
+import '../features/auth/screens/oauth_details_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
 import '../features/auth/state/auth_controller.dart';
-
-// Shell + App pages
 import '../features/home/home_shell.dart';
 import '../features/crops/screens/crop_list_screen.dart';
-import '../features/crops/screens/add_crop_screen.dart';
 import '../features/crops/screens/crop_details_screen.dart';
+import '../features/crops/screens/add_crop_screen.dart';
 import '../features/location/map_picker_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/support/screens/support_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
-import '../features/profile/screens/profile_screen.dart';
 
-// Expose: are we authenticated?
-final isAuthenticatedProvider = Provider<bool>((ref) {
-  final authState = ref.watch(authControllerProvider);
-  return authState.isAuthenticated;
-});
-
-// Two navigator keys:
-// - _rootKey: the app-wide root navigator (outside the shell)
-// - _shellKey: the shell's internal navigator (for tabbed content)
-final _rootKey = GlobalKey<NavigatorState>();
-final _shellKey = GlobalKey<NavigatorState>();
-
-final goRouterProvider = Provider<GoRouter>((ref) {
-  final isAuthed = ref.watch(isAuthenticatedProvider);
-
+final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    navigatorKey: _rootKey,
-    // Start at "/" — redirect below will move unauth users to /login.
     initialLocation: '/',
-
     routes: [
-      // ------------------- PUBLIC/AUTH FLOW -------------------
+      // Splash Screen
       GoRoute(
         path: '/',
-        pageBuilder: (ctx, st) => CustomTransitionPage(
-          key: st.pageKey,
-          child: const WelcomeScreen(),
-          transitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
-        ),
+        builder: (context, state) => const SplashScreen(),
       ),
+
+      // Welcome Screen
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
+      ),
+
+      // Auth Routes
       GoRoute(
         path: '/login',
-        pageBuilder: (ctx, st) => CustomTransitionPage(
-          key: st.pageKey,
-          child: const LoginPhoneScreen(),
-          transitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
-        ),
+        builder: (context, state) => const LoginOptionsScreen(),
       ),
+
+      GoRoute(
+        path: '/login/phone',
+        builder: (context, state) => const LoginPhoneScreen(),
+      ),
+
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) => const SignupOptionsScreen(),
+      ),
+
+      GoRoute(
+        path: '/signup/phone',
+        builder: (context, state) => const SignupPhoneScreen(),
+      ),
+
+      GoRoute(
+        path: '/oauth/details',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return OAuthDetailsScreen(
+            provider: extra['provider'] as String,
+            oauthData: extra['oauthData'] as Map<String, dynamic>,
+          );
+        },
+      ),
+
       GoRoute(
         path: '/otp',
-        pageBuilder: (ctx, st) => CustomTransitionPage(
-          key: st.pageKey,
-          child: OtpScreen(phone: st.uri.queryParameters['phone'] ?? ''),
-          transitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
-        ),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final phone = extra?['phone'] as String? ?? '';
+          return OtpScreen(phone: phone);
+        },
       ),
 
-      // ------------------- SHELL (BOTTOM NAV) -------------------
-      // Only the 4 tabs live inside the shell.
+      // Main App Shell
       ShellRoute(
-        navigatorKey: _shellKey,
         builder: (context, state, child) {
-          final here = GoRouterState.of(context).uri.toString();
-
-          // Title per section (Arabic defaults).
-          String title = 'محاصيل';
-          if (here.startsWith('/crops/add')) title = 'إضافة محصول';
-          if (here.startsWith('/crops/')) title = 'تفاصيل المحصول';
-          if (here.startsWith('/support')) title = 'الدعم الفني';
-          if (here.startsWith('/settings')) title = 'الإعدادات';
-          // NOTE: notifications/profile are not in the shell anymore.
-
-          // Map current route -> one of the 4 tab indices (0..3)
-          // IMPORTANT: Never return 4 or 5 here since the bar has 4 tabs.
-          int index = 0;
-          if (here.startsWith('/crops/add')) {
-            index = 1;
-          } else if (here.startsWith('/support')) {
-            index = 2;
-          } else if (here.startsWith('/settings')) {
-            index = 3;
-          } else {
-            index = 0; // '/home' and '/crops' stay on tab 0
-          }
-
-          void onNav(int idx) {
-            switch (idx) {
-              case 0:
-                context.go('/home');
-                break;
-              case 1:
-                context.go('/crops/add');
-                break;
-              case 2:
-                context.go('/support');
-                break;
-              case 3:
-                context.go('/settings');
-                break;
-            }
-          }
-
           return HomeShell(
-            title: title,
+            currentIndex: 0, // or map from state.location
+            onTabSelected: (index) {
+              switch (index) {
+                case 0: context.go('/home'); break;
+                case 1: context.go('/profile'); break;
+                case 2: context.go('/settings'); break;
+                case 3: context.go('/support'); break;
+                case 4: context.go('/notifications'); break;
+              }
+            },
             child: child,
-            currentIndex: index,
-            onTabSelected: onNav,
           );
         },
         routes: [
           GoRoute(
             path: '/home',
-            name: 'home',
-            builder: (_, __) => const CropListScreen(),
+            builder: (context, state) => const CropListScreen(),
           ),
           GoRoute(
-            path: '/crops',
-            name: 'crops',
-            builder: (_, __) => const CropListScreen(),
-          ),
-          GoRoute(
-            path: '/crops/add',
-            name: 'addCrop',
-            builder: (_, __) => const AddCropScreen(),
-          ),
-          GoRoute(
-            path: '/crops/:id',
-            name: 'cropDetails',
-            builder: (ctx, st) {
-              final id = int.parse(st.pathParameters['id']!);
-              return CropDetailsScreen(id: id);
-            },
-          ),
-          GoRoute(
-            path: '/support',
-            name: 'support',
-            builder: (_, __) => const SupportScreen(),
+            path: '/profile',
+            builder: (context, state) => const ProfileScreen(),
           ),
           GoRoute(
             path: '/settings',
-            name: 'settings',
-            builder: (_, __) => const SettingsScreen(),
+            builder: (context, state) => const SettingsScreen(),
           ),
           GoRoute(
-            path: '/map-picker',
-            name: 'map_picker',
-            builder: (_, __) => const MapPickerScreen(),
+            path: '/support',
+            builder: (context, state) => const SupportScreen(),
+          ),
+          GoRoute(
+            path: '/notifications',
+            builder: (context, state) => const NotificationsScreen(),
           ),
         ],
       ),
 
-      // ------------------- TOP-LEVEL OVERLAYS -------------------
-      // These are OUTSIDE the shell and will be pushed on top (no tab index change).
+      // Crop Routes
       GoRoute(
-        path: '/notifications',
-        name: 'notifications',
-        builder: (_, __) => const NotificationsScreen(),
+        path: '/crops/:id',
+        name: 'cropDetails',
+        builder: (ctx, st) {
+          final id = int.parse(st.pathParameters['id']!);
+          return CropDetailsScreen(id: id);
+        },
       ),
+
       GoRoute(
-        path: '/profile',
-        name: 'profile',
-        builder: (_, __) => const ProfileScreen(),
+        path: '/add-crop',
+        builder: (context, state) => const AddCropScreen(),
+      ),
+
+      // Map Picker
+      GoRoute(
+        path: '/map-picker',
+        builder: (context, state) => const MapPickerScreen(),
       ),
     ],
-
-    // ------------------- REDIRECTS (AUTH GATE) -------------------
-    // Keep this pure: only read state, don't do side effects here.
-    redirect: (ctx, st) {
-      final here = st.matchedLocation;
-      final isAuthFlow = here == '/login' || here.startsWith('/otp');
-      final isWelcome  = here == '/';
-
-      // Any route that requires auth?
-      final isShellRoute = here.startsWith('/home') ||
-          here.startsWith('/crops') ||
-          here.startsWith('/support') ||
-          here.startsWith('/settings') ||
-          here.startsWith('/map-picker') ||
-          // overlays also require auth
-          here.startsWith('/notifications') ||
-          here.startsWith('/profile');
-
-      if (!isAuthed && isShellRoute) {
-        return '/login';
-      }
-      if (isAuthed && (isWelcome || isAuthFlow)) {
-        return '/home';
-      }
-      return null;
-    },
   );
 });

@@ -86,7 +86,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                         final code = _otpCtrl.text.trim();
                         await ref
                             .read(authControllerProvider.notifier)
-                            .verifyLoginOtp(code);
+                            .verifyOtp(code);
                       },
                 child: auth.loading
                     ? const CircularProgressIndicator()
