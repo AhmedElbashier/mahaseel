@@ -1,12 +1,13 @@
 // lib/features/auth/data/auth_repo.dart
 import '../../../services/api_client.dart';
-import '../phone_formatter.dart';
+import '../phone_formatter.dart'; // <-- ensures formatPhone is available
 
 class AuthRepo {
   final _dio = ApiClient().dio;
 
   Future<String?> login({required String phone}) async {
-    final res = await _dio.post('/auth/login', data: {'phone': formatPhone(phone)});
+    final normalized = formatPhone(phone);
+    final res = await _dio.post('/auth/login', data: {'phone': normalized});
     // dev: server may include {dev_otp: '123456'} to display during development
     return (res.data is Map && res.data['dev_otp'] is String)
         ? res.data['dev_otp'] as String
@@ -14,13 +15,13 @@ class AuthRepo {
   }
 
   Future<void> register({required String phone, required String name}) async {
-    await _dio.post('/auth/register',
-        data: {'phone': formatPhone(phone), 'name': name});
+    final normalized = formatPhone(phone);
+    await _dio.post('/auth/register', data: {'phone': normalized, 'name': name});
   }
 
   Future<String> verify({required String phone, required String otp}) async {
-    final res = await _dio.post('/auth/verify',
-        data: {'phone': formatPhone(phone), 'otp': otp});
+    final normalized = formatPhone(phone);
+    final res = await _dio.post('/auth/verify', data: {'phone': normalized, 'otp': otp});
     return (res.data as Map)['access_token'] as String;
   }
 }

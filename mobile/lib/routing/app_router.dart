@@ -5,10 +5,10 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/welcome_screen.dart';
-import '../features/auth/screens/login_options_screen.dart';
 import '../features/auth/screens/login_phone_screen.dart';
-import '../features/auth/screens/signup_options_screen.dart';
 import '../features/auth/screens/signup_phone_screen.dart';
+import '../features/auth/screens/login_options_screen.dart' as login_views;
+import '../features/auth/screens/signup_options_screen.dart' as signup_views;
 import '../features/auth/screens/oauth_details_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
 import '../features/auth/state/auth_controller.dart';
@@ -32,16 +32,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
 
-      // Welcome Screen
-      GoRoute(
-        path: '/welcome',
-        builder: (context, state) => const WelcomeScreen(),
-      ),
+      // // Welcome Screen
+      // GoRoute(
+      //   path: '/welcome',
+      //   builder: (context, state) => const WelcomeScreen(),
+      // ),
 
       // Auth Routes
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginOptionsScreen(),
+        builder: (context, state) => const login_views.LoginOptionsScreen(),
       ),
 
       GoRoute(
@@ -51,7 +51,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
         path: '/signup',
-        builder: (context, state) => const SignupOptionsScreen(),
+        builder: (context, state) => const signup_views.SignupOptionsScreen(),
       ),
 
       GoRoute(

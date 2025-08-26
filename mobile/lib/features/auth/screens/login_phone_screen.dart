@@ -1,9 +1,10 @@
-// lib/features/auth/screens/login_phone_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
 import '../state/auth_controller.dart';
+import '../phone_formatter.dart';
 
 class LoginPhoneScreen extends ConsumerStatefulWidget {
   const LoginPhoneScreen({super.key});
@@ -12,128 +13,434 @@ class LoginPhoneScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginPhoneScreen> createState() => _LoginPhoneScreenState();
 }
 
-class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen> {
-  late final TextEditingController _phoneCtrl;
-  late final ProviderSubscription<AuthState> _authSub;
+class _LoginPhoneScreenState extends ConsumerState<LoginPhoneScreen>
+    with TickerProviderStateMixin {
+  final _phoneController = TextEditingController();
+  final _focusNode = FocusNode();
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  bool _isPhoneValid = false;
 
-  final _formKey = GlobalKey<FormState>();
-  String _countryCode = '+970';
+  // Country codes for Sudan and neighboring countries
+  final List<Map<String, String>> _countryCodes = [
+    {'code': '+249', 'name': 'السودان', 'flag': '🇸🇩'},
+    {'code': '+20', 'name': 'مصر', 'flag': '🇪🇬'},
+    {'code': '+966', 'name': 'السعودية', 'flag': '🇸🇦'},
+    {'code': '+971', 'name': 'الإمارات', 'flag': '🇦🇪'},
+    {'code': '+974', 'name': 'قطر', 'flag': '🇶🇦'},
+    {'code': '+965', 'name': 'الكويت', 'flag': '🇰🇼'},
+    {'code': '+973', 'name': 'البحرين', 'flag': '🇧🇭'},
+    {'code': '+968', 'name': 'عُمان', 'flag': '🇴🇲'},
+    {'code': '+962', 'name': 'الأردن', 'flag': '🇯🇴'},
+    {'code': '+963', 'name': 'سوريا', 'flag': '🇸🇾'},
+    {'code': '+964', 'name': 'العراق', 'flag': '🇮🇶'},
+  ];
+
+  String _selectedCountryCode = '+249';
 
   @override
   void initState() {
     super.initState();
-    _phoneCtrl = TextEditingController();
-    _authSub = ref.listenManual<AuthState>(
-      authControllerProvider,
-          (prev, next) {
-        if (!mounted) return;
-
-        // When OTP is produced (dev or real), go to OTP screen once
-        final becameOtp = (prev?.devOtp == null && next.devOtp != null);
-        if (becameOtp) {
-          context.push('/otp', extra: {'phone': next.phone});
-        }
-
-        // If an error just appeared, show it
-        final gotNewError = (prev?.error != next.error) && next.error != null;
-        if (gotNewError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(next.error!)),
-          );
-        }
-      },
-      fireImmediately: false,
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
     );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.elasticOut,
+    ));
+
+    _phoneController.addListener(_onPhoneChanged);
+    _controller.forward();
   }
 
   @override
   void dispose() {
-    _authSub.close();
-    _phoneCtrl.dispose();
+    _phoneController.dispose();
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onPhoneChanged() {
+    final phone = _phoneController.text.trim();
+    final isValid = phone.length >= 7;
+    if (isValid != _isPhoneValid) {
+      setState(() {
+        _isPhoneValid = isValid;
+      });
+    }
+  }
+
+  void _handleContinue() async {
+    if (!_isPhoneValid) return;
+
+    final phone = '$_selectedCountryCode${_phoneController.text.trim()}';
+    await ref.read(authControllerProvider.notifier).startLogin(phone);
+
+    if (mounted) {
+      context.push('/otp');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          ),
+          onPressed: () => context.pop(),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF2196F3), // Mahaseel blue
+              Color(0xFF1976D2),
+              Color(0xFF0D47A1),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 40),
+
+                // Header
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.login_rounded,
+                          size: 50,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'تسجيل الدخول',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'أدخل رقم هاتفك للمتابعة',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 60),
+
+                // Phone Input
+                SlideTransition(
+                  position: _slideAnimation,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Country Code Dropdown
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedCountryCode,
+                              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                              dropdownColor: const Color(0xFF1976D2),
+                              style: const TextStyle(color: Colors.white),
+                              items: _countryCodes.map((country) {
+                                return DropdownMenuItem<String>(
+                                  value: country['code'],
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        country['flag']!,
+                                        style: const TextStyle(fontSize: 20),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        country['code']!,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _selectedCountryCode = value;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        // Phone Number Input
+                        Expanded(
+                          child: TextField(
+                            controller: _phoneController,
+                            focusNode: _focusNode,
+                            keyboardType: TextInputType.phone,
+                            textDirection: TextDirection.ltr,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(12),
+                            ],
+                            decoration: InputDecoration(
+                              hintText: '123456789',
+                              hintStyle: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 18,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                if (authState.error != null) ...[
+                  const SizedBox(height: 16),
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.red.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              authState.error!,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                const Spacer(),
+
+                // Continue Button
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: _ContinueButton(
+                    onPressed: _isPhoneValid && !authState.loading ? _handleContinue : null,
+                    loading: authState.loading,
+                    enabled: _isPhoneValid,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ContinueButton extends StatefulWidget {
+  final VoidCallback? onPressed;
+  final bool loading;
+  final bool enabled;
+
+  const _ContinueButton({
+    required this.onPressed,
+    required this.loading,
+    required this.enabled,
+  });
+
+  @override
+  State<_ContinueButton> createState() => _ContinueButtonState();
+}
+
+class _ContinueButtonState extends State<_ContinueButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authControllerProvider);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('تسجيل الدخول')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return GestureDetector(
+      onTapDown: widget.onPressed != null ? (_) => _controller.forward() : null,
+      onTapUp: widget.onPressed != null ? (_) => _controller.reverse() : null,
+      onTapCancel: () => _controller.reverse(),
+      onTap: widget.onPressed,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: double.infinity,
+          height: 60,
+          decoration: BoxDecoration(
+            gradient: widget.enabled
+                ? const LinearGradient(
+              colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)],
+            )
+                : null,
+            color: widget.enabled ? null : Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1,
+            ),
+            boxShadow: widget.enabled
+                ? [
+              BoxShadow(
+                color: const Color(0xFF4CAF50).withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ]
+                : null,
+          ),
+          child: widget.loading
+              ? const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          )
+              : const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Lottie.network(
-                'https://assets2.lottiefiles.com/packages/lf20_jcikwtux.json',
-                height: 180,
-                repeat: true,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 100,
-                    child: DropdownButtonFormField<String>(
-                      value: _countryCode,
-                      decoration: InputDecoration(
-                        labelText: 'الكود',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: '+249', child: Text('+249')),
-                        DropdownMenuItem(value: '+970', child: Text('+970')),
-                        DropdownMenuItem(value: '+966', child: Text('+966')),
-                      ],
-                      onChanged: (v) => setState(() => _countryCode = v ?? '+249'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _phoneCtrl,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        labelText: 'رقم الهاتف',
-                        hintText: '5xxxxxxxx',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'أدخل رقم الهاتف' : null,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: auth.loading
-                    ? null
-                    : () async {
-                        if (!_formKey.currentState!.validate()) return;
-                        final phone = '$_countryCode${_phoneCtrl.text.trim()}';
-                        await ref
-                            .read(authControllerProvider.notifier)
-                            .startLogin(phone);
-                      },
-                child: auth.loading
-                    ? const CircularProgressIndicator()
-                    : const Text('متابعة'),
-              ),
-              if (auth.devOtp != null) ...[
-
-                const SizedBox(height: 12),
-                Text(
-                  'OTP (dev): ${auth.devOtp}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-
+              Text(
+                'متابعة',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-              ]
+              ),
+              SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ],
           ),
         ),

@@ -110,4 +110,6 @@ wrapt==1.17.3
 psycopg2-binary
 
 google-auth
+google-auth[requests]>=2.35.0
+
 httpx
