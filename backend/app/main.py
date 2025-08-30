@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends,Request, Response
+from fastapi import FastAPI, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -11,7 +11,6 @@ import logging
 import os
 
 
-from app.core.cors import add_cors
 from app.core.errors import add_error_handlers
 from app.core.ratelimit import add_rate_limiting
 from app.observability import RequestLogMiddleware
@@ -29,9 +28,9 @@ from app.routes.admin import router as admin_routes
 from app.routes.ratings import router as rating_routes
 from app.routes.orders import router as order_routes
 from app.routes.auth_social import router as auth_social_router
-from app.routes.favorites import router as favorites_routes 
-from app.routes.chat import router as chat_routes 
-from app.routes.ws import router as ws_routes 
+from app.routes.favorites import router as favorites_routes
+from app.routes.chat import router as chat_routes
+from app.routes.ws import router as ws_routes
 
 from app.api.deps import get_current_user
 
@@ -41,18 +40,21 @@ log = logging.getLogger("mahaseel")
 app = FastAPI(
     title=settings.app_name, version="0.1.0", docs_url="/docs", redoc_url="/redoc"
 )
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/uploads")  
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=(settings.cors_origins or ["*"]),
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
+    max_age=600,
 )
 app.add_middleware(RequestLogMiddleware)
+
 
 @app.get("/_routes", tags=["system"])
 def list_routes():
@@ -64,8 +66,8 @@ def healthz():
     log.info("healthz ping", extra={"env": settings.env})
     return {"status": "ok", "env": settings.env}
 
+
 # hardening
-add_cors(app)
 add_rate_limiting(app)
 add_error_handlers(app)
 
@@ -86,4 +88,3 @@ app.include_router(auth_social_router)
 app.include_router(favorites_routes)
 app.include_router(chat_routes)
 app.include_router(ws_routes)
-

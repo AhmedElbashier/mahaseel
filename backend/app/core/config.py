@@ -9,7 +9,8 @@ from pydantic import AnyHttpUrl, field_validator
 
 
 def _normalize_db_url(url: str) -> str:
-    if not url: return url
+    if not url:
+        return url
     url = url.strip()
     # keep if already using postgresql+psycopg://
     if url.startswith("postgres://"):
@@ -29,16 +30,18 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_minutes: int = 60
 
-    google_client_id: str = ""    
+    google_client_id: str = ""
     fb_app_id: str = ""
     fb_app_secret: str = ""
 
-    
     # Local default (host-run)
     database_url: str = "postgresql+psycopg://mahaseel:mahaseel@localhost:5432/mahaseel"
 
     # Accept either a list or a comma-separated string from env
-    cors_origins: List[AnyHttpUrl] | List[str] | str = []
+    cors_origins: List[AnyHttpUrl] | List[str] | str = [
+        "https://app.example.com",
+        "https://admin.example.com",
+    ]
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -38,6 +38,9 @@ docs/ # Documentation
 - `.env` per service (never committed)
 - Pre-commit hooks (lint, format, test)
 
+## 🔧 Environment Variables
+- `CORS_ORIGINS`: Comma-separated list of allowed origins for CORS, e.g. `https://app.example.com,https://admin.example.com`.
+
 ## 📖 Documentation
 See [docs/tech-decisions.md](docs/tech-decisions.md) for pinned versions and architectural decisions.
 
