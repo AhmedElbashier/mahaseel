@@ -14,3 +14,16 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## API configuration
+
+The app reads its API endpoint from a runtime environment variable using
+[`flutter_dotenv`](https://pub.dev/packages/flutter_dotenv).
+Create a `.env` file in the `mobile/` directory:
+
+```
+API_BASE_URL=https://staging.mahaseel.com
+```
+
+- `API_BASE_URL` – Base URL for HTTP requests. In release builds the app
+  refuses to run if this value is not HTTPS.
