@@ -1,6 +1,7 @@
 // lib/features/auth/data/auth_repo.dart
 import '../../../services/api_client.dart';
 import '../phone_formatter.dart'; // <-- ensures formatPhone is available
+import 'package:flutter/foundation.dart';
 
 class AuthRepo {
   final _dio = ApiClient().dio;
@@ -22,7 +23,9 @@ class AuthRepo {
   Future<String> verify({required String phone, required String otp}) async {
     final normalized = formatPhone(phone);
     final res = await _dio.post('/auth/verify', data: {'phone': normalized, 'otp': otp});
-    print('[OTP] verify phone=${formatPhone(phone)} otp=$otp');
+    if (kDebugMode) {
+      debugPrint('[OTP] verify phone=${formatPhone(phone)} otp=$otp');
+    }
 
     return (res.data as Map)['access_token'] as String;
   }
