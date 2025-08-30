@@ -17,6 +17,14 @@ import '../models/crop.dart';
 import '../data/location.dart';
 import '../state/crops_controller.dart';
 
+
+import '../../favorites/state/favourites_controller.dart';
+import '../../favorites/widgets/add_to_list_sheet.dart';
+import '../../auth/state/auth_controller.dart'; // or your auth
+
+import 'package:mahaseel/features/chats/screens/chats_thread_screen.dart';
+import 'package:mahaseel/features/chats/screens/chats_list_screen.dart' show chatRepoProvider;
+
 class CropDetailsScreen extends ConsumerStatefulWidget {
   final int id;
   const CropDetailsScreen({super.key, required this.id});
@@ -37,6 +45,8 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
     super.initState();
     _future = ref.read(cropsRepoProvider).getById(widget.id);
     _requestLocationPermission();
+    unawaited(ref.read(favouritesControllerProvider.notifier).bootstrap());
+
   }
 
   @override
@@ -85,6 +95,56 @@ class _CropDetailsScreenState extends ConsumerState<CropDetailsScreen> {
 ${c.notes?.isNotEmpty == true ? '\n📝 ملاحظات: ${c.notes}' : ''}
     '''.trim();
     Share.share(text);
+  }
+  Future<void> _openChat(Crop c) async {
+    final me = ref.read(currentUserProvider);
+    if (me == null) { /* send to /login */ return; }
+
+    if (me.id == c.sellerId.toString()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكنك مراسلة إعلانك')),
+      );
+      return;
+    }
+
+    // Prevent chatting with self
+    if (me.id == c.sellerId.toString()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكنك مراسلة إعلانك')),
+      );
+      return;
+    }
+
+    try {
+      final repo = ref.read(chatRepoProvider);
+      final conv = await repo.createOrGetConversation(
+        otherUserId: c.sellerId,
+        listingId: c.id,
+        role: 'buyer', // current user is buying from the seller
+      );
+
+      if (!mounted) return;
+      // Navigate to the thread
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => ChatThreadScreen(conversationId: conv.id)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text('تعذّر بدء المحادثة'),
+            ],
+          ),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   Future _openWhatsApp(Crop c) async {
@@ -296,10 +356,50 @@ ${c.notes?.isNotEmpty == true ? '\n📝 ملاحظات: ${c.notes}' : ''}
             background: _buildImageGallery(allImages, theme),
           ),
           actions: [
+            // Share
             IconButton(
               icon: const Icon(Icons.share),
               onPressed: () => _share(c),
             ),
+
+            // Favourites (like Dubizzle): heart toggle + "save to list"
+            Consumer(builder: (context, ref, _) {
+              // 1) read current favourites state
+              final favSt = ref.watch(favouritesControllerProvider);
+              final bool isFav = favSt.favoritedCropIdsDefault.contains(c.id);
+
+              final meIdStr = ref.watch(currentUserProvider.select((u) => u?.id));
+              final meId = int.tryParse(meIdStr ?? '');
+              final bool isOwner = (meId != null && meId == c.sellerId);
+
+              if (isOwner) {
+                return IconButton(
+                  tooltip: 'هذا إعلانك',
+                  icon: const Icon(Icons.lock_outline),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('لا يمكنك حفظ إعلانك')),
+                    );
+                  },
+                );
+              }
+
+              // 3) normal users: heart + save-to-list buttons
+              return Row(mainAxisSize: MainAxisSize.min, children: [
+                IconButton(
+                  tooltip: isFav ? 'إزالة من المفضلة' : 'حفظ في المفضلة',
+                  icon: Icon(isFav ? Icons.favorite : Icons.favorite_border),
+                  onPressed: () => ref
+                      .read(favouritesControllerProvider.notifier)
+                      .toggleHeart(context: context, cropId: c.id), // default list
+                ),
+                IconButton(
+                  tooltip: 'حفظ إلى قائمة…',
+                  icon: const Icon(Icons.bookmark_add_outlined),
+                  onPressed: () => showAddToListSheet(context, ref, cropId: c.id),
+                ),
+              ]);
+            }),
           ],
         ),
         SliverToBoxAdapter(
@@ -578,6 +678,9 @@ ${c.notes?.isNotEmpty == true ? '\n📝 ملاحظات: ${c.notes}' : ''}
   }
 
   Widget _buildSellerCard(Crop c, ThemeData theme) {
+    final meId = ref.watch(currentUserProvider.select((u) => u?.id));
+    final bool isOwner = (meId != null && meId == c.sellerId.toString());
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -645,18 +748,33 @@ ${c.notes?.isNotEmpty == true ? '\n📝 ملاحظات: ${c.notes}' : ''}
                   ],
                 ),
               ),
-              if (c.sellerPhone?.trim().isNotEmpty ?? false)
-                FilledButton.icon(
-                  onPressed: () => _openWhatsApp(c),
-                  icon: const Icon(Icons.chat),
-                  label: const Text('واتساب'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Chat button
+                  FilledButton.icon(
+                    onPressed: isOwner ? null : () => _openChat(c),   // ❌ disabled if owner
+                    icon: const Icon(Icons.forum_outlined),
+                    label: const Text('محادثة'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  if (c.sellerPhone?.trim().isNotEmpty ?? false)
+                    FilledButton.icon(
+                      onPressed: isOwner ? null : () => _openWhatsApp(c), // also disable if owner
+                      icon: const Icon(Icons.chat),
+                      label: const Text('واتساب'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ],

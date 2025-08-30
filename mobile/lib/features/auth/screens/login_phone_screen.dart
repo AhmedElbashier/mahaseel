@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/navigation/safe_back_button.dart';
 import '../state/auth_controller.dart';
-import '../phone_formatter.dart';
 import '../../../core/ui/responsive_scaffold.dart';
 
 class LoginPhoneScreen extends ConsumerStatefulWidget {

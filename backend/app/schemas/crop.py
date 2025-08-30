@@ -1,4 +1,5 @@
 # app/schemas/crop.py
+from datetime import datetime
 from pydantic import BaseModel, Field, condecimal
 from typing import Optional
 
@@ -29,6 +30,6 @@ class CropOut(BaseModel):
     location: LocationIn
     notes: Optional[str] = None
     image_url: Optional[str] = Field(default=None, description="URL of the main image")
-
+    created_at: datetime
     class Config:
         from_attributes = True

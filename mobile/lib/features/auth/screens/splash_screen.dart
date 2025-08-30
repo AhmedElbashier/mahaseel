@@ -13,7 +13,7 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
-  bool _navigated = false; // prevent double navigation
+  // bool _navigated = false; // prevent double navigation
 
   @override
   void initState() {
@@ -35,16 +35,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
 
-  Future<void> _checkAuthStatus() async {
-    await Future.delayed(const Duration(seconds: 3)); // always wait 2s
-    if (!mounted || _navigated) return;
-
-    final auth = ref.read(authControllerProvider);
-    final toHome = auth.isAuthenticated && auth.user != null;
-
-    _navigated = true;
-    context.go(toHome ? '/home' : '/login');
-  }
+  // Future<void> _checkAuthStatus() async {
+  //   await Future.delayed(const Duration(seconds: 3)); // always wait 2s
+  //   if (!mounted || _navigated) return;
+  //
+  //   final auth = ref.read(authControllerProvider);
+  //   final toHome = auth.isAuthenticated && auth.user != null;
+  //
+  //   _navigated = true;
+  //   context.go(toHome ? '/home' : '/login');
+  // }
 
   @override
   Widget build(BuildContext context) {

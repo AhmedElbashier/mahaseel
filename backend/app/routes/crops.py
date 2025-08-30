@@ -1,7 +1,7 @@
 # app/api/routes/crops.py
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from enum import Enum
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload, joinedload
 from typing import List, Optional
 
@@ -12,6 +12,7 @@ from app.api.deps import require_roles
 from app.utils.serializers import serialize_crop
 from app.core.ratelimit import limiter
 from app.models.user import User
+import re
 
 router = APIRouter(prefix="/crops", tags=["crops"])
 
@@ -64,6 +65,9 @@ def list_crops(
     min_price: Optional[float] = Query(default=None, ge=0),
     max_price: Optional[float] = Query(default=None, ge=0),
 
+    # NEW: free-text search
+    q: Optional[str] = Query(default=None, description="Free-text search on name/type/state"),
+
     # sorting
     sort: CropSort = Query(default=CropSort.newest),
 
@@ -72,22 +76,27 @@ def list_crops(
     offset: Optional[int] = Query(None, ge=0),
     page: Optional[int] = Query(None, ge=1),
 ):
-    # validate price range (now real floats/None, not Query objects)
-    if (min_price is not None) and (max_price is not None) and (min_price > max_price):
-        raise HTTPException(status_code=400, detail="min_price cannot be greater than max_price")
-
-    # compute offset from page if provided (page starts at 1)
-    if page is not None:
-        offset = (page - 1) * limit
-    if offset is None:
-        offset = 0
-    if page is None:
-        page = (offset // limit) + 1
+    # ...existing validation and page/offset code...
 
     # Normalize input the SAME way we normalized at write-time
-    state_norm = state.strip().title() if state else None
+    state_norm = state.strip().title() if state else None  # you already do this
+    # --- NEW: normalize q (strip, lower, remove Arabic diacritics and unify letters)
+    def _normalize_ar(s: str) -> str:
+        # remove Arabic diacritics (tashkeel)
+        s = re.sub(r"[\u064B-\u0652]", "", s)
+        # unify Arabic forms to improve matching
+        s = (s.replace("أ", "ا")
+               .replace("إ", "ا")
+               .replace("آ", "ا")
+               .replace("ى", "ي")
+               .replace("ؤ", "و")
+               .replace("ئ", "ي")
+               .replace("ة", "ه"))
+        return s.strip().lower()
 
-    q = (
+    q_norm = _normalize_ar(q) if q else None
+
+    qset = (
         db.query(Crop)
         .options(
             joinedload(Crop.seller).load_only(User.id, User.name, User.phone),
@@ -97,27 +106,59 @@ def list_crops(
 
     # filters
     if type_:
-        q = q.filter(Crop.type == type_)
+        qset = qset.filter(Crop.type == type_)
     if state_norm:
-        q = q.filter(Crop.state == state_norm)
+        qset = qset.filter(Crop.state == state_norm)
     if min_price is not None:
-        q = q.filter(Crop.price >= min_price)
+        qset = qset.filter(Crop.price >= min_price)
     if max_price is not None:
-        q = q.filter(Crop.price <= max_price)
+        qset = qset.filter(Crop.price <= max_price)
+
+    # --- NEW: search filter (ILIKE on normalized text)
+    if q_norm:
+        # We normalize the DB columns on the fly similarly (lower + simple char mapping).
+        # NOTE: For performance, we’ll add indexes in Step 2.
+        def norm_col(col):
+            # lower(...) then chain replace(...) like our Python normalize
+            return func.lower(
+                func.replace(
+                    func.replace(
+                        func.replace(
+                            func.replace(
+                                func.replace(
+                                    func.replace(col, "أ", "ا"), "إ", "ا"
+                                ),
+                                "آ", "ا"
+                            ),
+                            "ى", "ي"
+                        ),
+                        "ؤ", "و"
+                    ),
+                    "ئ", "ي"
+                )
+            )
+
+        pat = f"%{q_norm}%"
+        qset = qset.filter(
+            or_(
+                norm_col(Crop.name).ilike(pat),
+                norm_col(Crop.type).ilike(pat),
+                norm_col(Crop.state).ilike(pat),
+            )
+        )
 
     # total BEFORE pagination
-    total = q.count()
+    total = qset.count()
 
-    # sorting
+    # sorting (unchanged)
     if sort == CropSort.newest:
-        q = q.order_by(Crop.created_at.desc(), Crop.id.desc())
+        qset = qset.order_by(Crop.created_at.desc(), Crop.id.desc())
     elif sort == CropSort.price_asc:
-        q = q.order_by(Crop.price.asc(), Crop.id.desc())
+        qset = qset.order_by(Crop.price.asc(), Crop.id.desc())
     elif sort == CropSort.price_desc:
-        q = q.order_by(Crop.price.desc(), Crop.id.desc())
+        qset = qset.order_by(Crop.price.desc(), Crop.id.desc())
 
-    # pagination
-    rows = q.offset(offset).limit(limit).all()
+    rows = qset.offset(offset).limit(limit).all()
 
     return {
         "items": [serialize_crop(c, request) for c in rows],
@@ -125,6 +166,7 @@ def list_crops(
         "limit": limit,
         "total": total,
     }
+
 
 @router.get("/{crop_id}", response_model=dict)
 @limiter.limit("60/minute")

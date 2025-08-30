@@ -1,4 +1,3 @@
-
 // lib/features/auth/state/auth_controller.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/api_client.dart';
@@ -47,7 +46,6 @@ class AuthState {
     this.user,
     this.pendingOAuthData,
     this.bootstrapped = false,
-
   });
 
   AuthState copyWith({
@@ -68,16 +66,22 @@ class AuthState {
       phone: phone ?? this.phone,
       user: user,
       pendingOAuthData: pendingOAuthData,
-        bootstrapped: bootstrapped ?? this.bootstrapped,
+      bootstrapped: bootstrapped ?? this.bootstrapped,
     );
   }
 }
 
 final authRepoProvider = Provider((_) => AuthRepo());
 
-final authControllerProvider =
-StateNotifierProvider<AuthController, AuthState>((ref) {
-  return AuthController(ref);
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    return AuthController(ref);
+  },
+);
+// Who is the current user?
+final currentUserProvider = Provider<AppUser?>((ref) {
+  final auth = ref.watch(authControllerProvider);
+  return auth.user;
 });
 
 class AuthController extends StateNotifier<AuthState> {
@@ -92,11 +96,12 @@ class AuthController extends StateNotifier<AuthState> {
     final has = await ApiClient().hasToken(); // should read from secure storage
     state = state.copyWith(isAuthenticated: has);
     if (has) {
-      await _loadProfile();  // optional; might be quick or not
+      await _loadProfile(); // optional; might be quick or not
     }
-    state = state.copyWith(bootstrapped: true);  // ✅ tell UI we’re done restoring
+    state = state.copyWith(
+      bootstrapped: true,
+    ); // ✅ tell UI we’re done restoring
   }
-
 
   Future<void> startLogin(String phone) async {
     state = state.copyWith(loading: true, error: null, phone: phone);
@@ -108,7 +113,10 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> startSignup({required String name, required String phone}) async {
+  Future<void> startSignup({
+    required String name,
+    required String phone,
+  }) async {
     state = state.copyWith(loading: true, error: null, phone: phone);
     try {
       await ref.read(authRepoProvider).register(phone: phone, name: name);
@@ -124,7 +132,9 @@ class AuthController extends StateNotifier<AuthState> {
     final phone = state.phone!;
     state = state.copyWith(loading: true, error: null);
     try {
-      final token = await ref.read(authRepoProvider).verify(phone: phone, otp: otp);
+      final token = await ref
+          .read(authRepoProvider)
+          .verify(phone: phone, otp: otp);
 
       // Save token first
       await ApiClient().saveToken(token);
@@ -140,13 +150,12 @@ class AuthController extends StateNotifier<AuthState> {
       // unawaited(_loadProfile());
       _loadProfile(); // it's fine to await or not; doesn't affect navigation now
 
-      return true;                           // ✅ tell caller success
+      return true; // ✅ tell caller success
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
-      return false;                          // ✅ tell caller failure
+      return false; // ✅ tell caller failure
     }
   }
-
 
   /// OAuth Login Methods
   Future<void> loginWithGoogle() async {
@@ -166,10 +175,7 @@ class AuthController extends StateNotifier<AuthState> {
 
       // Check if user exists with this OAuth account
       // If not, redirect to complete profile
-      state = state.copyWith(
-        loading: false,
-        pendingOAuthData: oauthData,
-      );
+      state = state.copyWith(loading: false, pendingOAuthData: oauthData);
 
       // Navigate to OAuth details screen - handled by UI
     } catch (e) {
@@ -192,10 +198,7 @@ class AuthController extends StateNotifier<AuthState> {
         'provider_id': '987654321',
       };
 
-      state = state.copyWith(
-        loading: false,
-        pendingOAuthData: oauthData,
-      );
+      state = state.copyWith(loading: false, pendingOAuthData: oauthData);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
     }
@@ -241,16 +244,20 @@ class AuthController extends StateNotifier<AuthState> {
   /// ---- Load profile from backend (or build minimal local user) ----
   Future<void> _loadProfile() async {
     try {
-      final phone = state.phone ?? '9xxxxxxx';
+      final j = await ref.read(authRepoProvider).meRaw();
       final user = AppUser(
-        id: 'self',
-        name: 'مستخدم محاصيل',
-        phone: phone,
-        role: 'seller',
+        id: (j['id'] ?? '').toString(),
+        name: (j['name'] ?? 'مستخدم محاصيل').toString(),
+        phone: (j['phone'] ?? state.phone ?? '').toString(),
+        role: (j['role'] ?? 'buyer').toString(),
       );
       state = state.copyWith(user: user);
     } catch (_) {
       state = state.copyWith(user: null);
     }
   }
+
+
+
+
 }

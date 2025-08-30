@@ -39,3 +39,5 @@ class User(Base):
     orders_made: Mapped[list["Order"]] = relationship(
         back_populates="buyer", foreign_keys="Order.buyer_id"
     )
+
+    favorite_lists = relationship("FavoriteList", cascade="all, delete-orphan", back_populates="user")

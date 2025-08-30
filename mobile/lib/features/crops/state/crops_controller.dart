@@ -16,6 +16,7 @@ class CropsState {
   final bool hasMore;
   final String? error;
   final int page;
+  final String? query;
 
   CropsState({
     required this.items,
@@ -24,6 +25,7 @@ class CropsState {
     required this.hasMore,
     required this.page,
     this.error,
+    this.query,
   });
 
   factory CropsState.initial() => CropsState(
@@ -32,6 +34,7 @@ class CropsState {
     loadingMore: false,
     hasMore: true,
     page: 1,
+    query: null,
   );
 
   CropsState copyWith({
@@ -41,6 +44,7 @@ class CropsState {
     bool? hasMore,
     int? page,
     String? error,
+    String? query,
   }) =>
       CropsState(
         items: items ?? this.items,
@@ -48,13 +52,13 @@ class CropsState {
         loadingMore: loadingMore ?? this.loadingMore,
         hasMore: hasMore ?? this.hasMore,
         page: page ?? this.page,
-        error: error,
+        error: error ?? this.error,
+        query: query ?? this.query,
       );
 }
 
-// StateNotifier provider
-final cropsControllerProvider =
-StateNotifierProvider<CropsController, CropsState>((ref) {
+// Provider
+final cropsControllerProvider = StateNotifierProvider<CropsController, CropsState>((ref) {
   return CropsController(ref);
 });
 
@@ -65,12 +69,13 @@ class CropsController extends StateNotifier<CropsState> {
 
   final Ref ref;
 
-  // ---- Filters + sorting (Day 25) ----
+  // active filter values
   String? _type;
-  String? _state;
+  String? _state; // geographic state/region filter
   double? _minPrice;
   double? _maxPrice;
   SortOption _sort = SortOption.newest;
+
   static const _cacheBox = 'crops_cache';
   static const _cacheKey = 'items';
 
@@ -84,20 +89,28 @@ class CropsController extends StateNotifier<CropsState> {
     await loadFirstPage();
   }
 
-  /// Call this from the Filter Sheet
+  /// Apply filters + sort + query (any of them may be null)
   Future<void> applyFilters({
     String? type,
-    String? state,
+    String? stateFilter, // <-- renamed to avoid shadowing
     double? minPrice,
     double? maxPrice,
     SortOption? sort,
+    String? query, // search text
   }) async {
     _type = type;
-    _state = state;
+    _state = stateFilter;
     _minPrice = minPrice;
     _maxPrice = maxPrice;
     if (sort != null) _sort = sort;
 
+    // keep query in notifier state (use this.state to be explicit)
+    if (query != null) {
+      final newQuery = query.trim();
+      this.state = this.state.copyWith(query: newQuery.isEmpty ? null : newQuery);
+    }
+
+    // persist non-query filters (query is volatile, so we don’t persist it)
     await CropFilters.save(CropFilters(
       type: _type,
       state: _state,
@@ -107,11 +120,14 @@ class CropsController extends StateNotifier<CropsState> {
     ));
 
     await Hive.box(_cacheBox).clear();
-    await loadFirstPage(); // reload page 1 with new filters
+    await loadFirstPage();
   }
 
   Future<void> loadFirstPage() async {
-    state = CropsState.initial();
+    // preserve current query when resetting
+    final currentQuery = state.query;
+    state = CropsState.initial().copyWith(query: currentQuery);
+
     final box = Hive.box(_cacheBox);
     final cached = box.get(_cacheKey);
     if (cached is List) {
@@ -133,15 +149,17 @@ class CropsController extends StateNotifier<CropsState> {
         minPrice: _minPrice,
         maxPrice: _maxPrice,
         sort: _sort,
+        query: state.query, // forward query to API
       );
-      await box.put(
-        _cacheKey,
-        result.items.map((e) => e.toJson()).toList(),
-      );
+
+      await box.put(_cacheKey, result.items.map((e) => e.toJson()).toList());
+
       state = state.copyWith(
         items: result.items,
         loading: false,
-        hasMore: (result.page * result.limit) < result.total,
+        hasMore: (state.query?.isNotEmpty ?? false)
+            ? false
+            : (result.page * result.limit) < result.total,
         page: page,
         error: null,
       );
@@ -156,6 +174,7 @@ class CropsController extends StateNotifier<CropsState> {
   }
 
   Future<void> loadNextPage() async {
+    if ((state.query?.isNotEmpty ?? false)) return; // don't paginate while searching
     if (!state.hasMore || state.loadingMore) return;
     state = state.copyWith(loadingMore: true);
     try {
@@ -169,6 +188,7 @@ class CropsController extends StateNotifier<CropsState> {
         minPrice: _minPrice,
         maxPrice: _maxPrice,
         sort: _sort,
+        query: state.query,
       );
       state = state.copyWith(
         items: [...state.items, ...result.items],
@@ -179,5 +199,11 @@ class CropsController extends StateNotifier<CropsState> {
     } catch (e) {
       state = state.copyWith(loadingMore: false, error: e.toString());
     }
+  }
+
+  /// Search helper
+  Future<void> search(String q) async {
+    final cleaned = q.trim();
+    await applyFilters(query: cleaned.isEmpty ? null : cleaned);
   }
 }

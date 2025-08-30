@@ -28,6 +28,9 @@ from app.routes.admin import router as admin_routes
 from app.routes.ratings import router as rating_routes
 from app.routes.orders import router as order_routes
 from app.routes.auth_social import router as auth_social_router
+from app.routes.favorites import router as favorites_routes 
+from app.routes.chat import router as chat_routes 
+from app.routes.ws import router as ws_routes 
 
 from app.api.deps import get_current_user
 
@@ -75,4 +78,7 @@ app.include_router(contact_router)
 app.include_router(rating_routes)
 app.include_router(order_routes)
 app.include_router(auth_social_router)
+app.include_router(favorites_routes)
+app.include_router(chat_routes)
+app.include_router(ws_routes)
 

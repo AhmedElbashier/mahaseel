@@ -26,4 +26,10 @@ class AuthRepo {
 
     return (res.data as Map)['access_token'] as String;
   }
+  Future<Map<String, dynamic>> meRaw() async {
+    final res = await _dio.get('/auth/me');
+    return (res.data as Map).cast<String, dynamic>();
+  }
+
+
 }

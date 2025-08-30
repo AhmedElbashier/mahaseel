@@ -3,50 +3,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mahaseel/features/home/app_drawer.dart';
 
 class HomeShell extends StatelessWidget {
   final Widget child;
-  final String title;
+  // final String title;
   final int currentIndex;
   final ValueChanged<int> onTabSelected;
+  final bool hideTopBar;
 
   const HomeShell({
     super.key,
     required this.child,
-    this.title = 'محاصيل',
+    // this.title = 'محاصيل',
     required this.currentIndex,
     required this.onTabSelected,
+    this.hideTopBar = false,
+
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    // final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         // Modern drawer positioning
-        drawer: isRtl ? null : const AppDrawer(),
-        endDrawer: isRtl ? const AppDrawer() : null,
+        // drawer: isRtl ? null : const AppDrawer(),
+        // endDrawer: isRtl ? const AppDrawer() : null,
 
         // Enhanced app bar with glassmorphism effect
-        appBar: AppBar(
-          title: Text(
-            title,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-          ),
+        appBar: hideTopBar ? null : AppBar(
           centerTitle: true,
           elevation: 0,
           scrolledUnderElevation: 4,
-          backgroundColor: colorScheme.surface.withOpacity(0.95),
-          surfaceTintColor: colorScheme.surfaceTint,
-          foregroundColor: colorScheme.onSurface,
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          foregroundColor: Colors.black87,
           systemOverlayStyle: theme.brightness == Brightness.light
               ? const SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
@@ -56,16 +51,9 @@ class HomeShell extends StatelessWidget {
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: Brightness.light,
           ),
-          iconTheme: IconThemeData(
-            color: colorScheme.onSurface,
-            size: 24,
-          ),
           actions: [
-            // Notifications is an overlay route (top-level). Use push.
             IconButton(
-              onPressed: () {
-                context.push('/notifications');
-              },
+              onPressed: () => context.push('/notifications'),
               icon: Badge(
                 smallSize: 8,
                 backgroundColor: Colors.red.shade400,
@@ -78,21 +66,9 @@ class HomeShell extends StatelessWidget {
         ),
 
         // Enhanced body with safe area
-        body: SafeArea(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  colorScheme.surface,
-                  colorScheme.surfaceVariant.withOpacity(0.3),
-                ],
-              ),
-            ),
+          body: SafeArea(
             child: child,
           ),
-        ),
 
         // Modern bottom navigation with Material 3 design
         bottomNavigationBar: Container(
@@ -121,22 +97,28 @@ class HomeShell extends StatelessWidget {
                 tooltip: 'الرئيسية',
               ),
               NavigationDestination(
+                icon: Icon(Icons.chat_outlined),
+                selectedIcon: Icon(Icons.chat_rounded),
+                label: 'المحادثات',
+                tooltip: 'المحادثات',
+              ),
+              NavigationDestination(
                 icon: Icon(Icons.add_circle_outline),
                 selectedIcon: Icon(Icons.add_circle_rounded),
                 label: 'إضافة محصول',
                 tooltip: 'إضافة محصول جديد',
               ),
               NavigationDestination(
-                icon: Icon(Icons.support_agent_outlined),
-                selectedIcon: Icon(Icons.support_agent_rounded),
-                label: 'الدعم',
-                tooltip: 'الدعم الفني',
+                icon: Icon(Icons.favorite_outline_outlined),
+                selectedIcon: Icon(Icons.favorite_rounded),
+                label: 'المفضلة',
+                tooltip: 'المفضلة',
               ),
               NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings_rounded),
-                label: 'الإعدادات',
-                tooltip: 'إعدادات التطبيق',
+                icon: Icon(Icons.menu_outlined),
+                selectedIcon: Icon(Icons.menu_rounded),
+                label: 'القائمة',
+                tooltip: 'القائمة',
               ),
             ],
           ),

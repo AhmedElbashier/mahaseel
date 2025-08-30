@@ -26,20 +26,29 @@ class Paginated<T> {
   final int limit;
   final int total;
   Paginated(this.items, this.page, this.limit, this.total);
+
+  Paginated<T> copyWith({
+    List<T>? items,
+    int? page,
+    int? limit,
+    int? total,
+  }) =>
+      Paginated<T>(
+        items ?? this.items,
+        page ?? this.page,
+        limit ?? this.limit,
+        total ?? this.total,
+      );
 }
 
 class CropsRepo {
   final Dio _dio;
   CropsRepo(this._dio);
 
-  // --- Day 15: details screen needs this
+  // --- Details
   Future<Crop> getById(int id) async {
     final res = await _dio.get('/crops/$id');
-    final crop = Crop.fromJson(res.data as Map<String, dynamic>);
-    // DEBUG
-    // ignore: avoid_print
-    //print('repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}');
-    return crop;
+    return Crop.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<Crop> createJson({
@@ -95,7 +104,6 @@ class CropsRepo {
       );
     }
 
-    // (When backend supports uploads, keep this block.)
     final form = FormData.fromMap({
       'name': name,
       'type': type,
@@ -112,7 +120,9 @@ class CropsRepo {
         for (final f in images)
           await MultipartFile.fromFile(
             f.path,
-            filename: f.uri.pathSegments.isNotEmpty ? f.uri.pathSegments.last : 'image.jpg',
+            filename: f.uri.pathSegments.isNotEmpty
+                ? f.uri.pathSegments.last
+                : 'image.jpg',
           ),
       ],
     });
@@ -128,8 +138,9 @@ class CropsRepo {
     double? minPrice,
     double? maxPrice,
     SortOption sort = SortOption.newest,
+    String? query, // ✅ search (server via 'q', with client fallback)
   }) async {
-    final query = <String, dynamic>{
+    final queryParams = <String, dynamic>{
       'page': page,
       'limit': limit,
       if (type != null && type.isNotEmpty) 'type': type,
@@ -137,30 +148,91 @@ class CropsRepo {
       if (minPrice != null) 'min_price': minPrice,
       if (maxPrice != null) 'max_price': maxPrice,
       'sort': sort.apiValue,
+      if (query != null && query.isNotEmpty) 'q': query,
     };
 
-    final res = await _dio.get('/crops', queryParameters: query);
+    final res = await _dio.get('/crops', queryParameters: queryParams);
     final data = res.data;
 
+    List<Crop> _parseList(List list) =>
+        list.map((e) => Crop.fromJson(e as Map<String, dynamic>)).toList();
+
+    // ---- Legacy: API returns a bare List
     if (data is List) {
-      // legacy shape (list only)
-      final items = data.map((e) => Crop.fromJson(e as Map<String, dynamic>)).toList();
+      List<Crop> items = _parseList(data);
+
+      // Client-side search fallback if needed
+      if ((query ?? '').trim().isNotEmpty) {
+        final q = _normalize(query!);
+        items = items.where((c) {
+          final name = _normalize(c.name);
+          final typeStr = _normalize(c.type);
+          final stateStr = _normalize(c.location.state ?? '');
+          return name.contains(q) || typeStr.contains(q) || stateStr.contains(q);
+        }).toList();
+      }
+
+
       final bool fullPage = items.length >= limit;
-      final syntheticTotal = fullPage ? (page * limit + 1) : (page - 1) * limit + items.length;
-      return Paginated<Crop>(items, page, limit, syntheticTotal);
+      final int total = fullPage
+          ? (page * limit + 1)
+          : (page - 1) * limit + items.length;
+
+      // All ints here ✅
+      return Paginated<Crop>(items, page, limit, total);
     }
 
+    // ---- Modern: API returns { items, page, limit, total }
     if (data is Map<String, dynamic>) {
       final itemsJson = (data['items'] as List?) ?? const [];
-      final items = itemsJson.map((e) => Crop.fromJson(e as Map<String, dynamic>)).toList();
-      return Paginated<Crop>(
-        items,
-        (data['page'] as num?)?.toInt() ?? page,
-        (data['limit'] as num?)?.toInt() ?? limit,
-        (data['total'] as num?)?.toInt() ?? items.length,
-      );
+      List<Crop> items = _parseList(itemsJson);
+
+      // Client-side search fallback if backend ignored 'q'
+      if ((query ?? '').trim().isNotEmpty && !queryParams.containsKey('q')) {
+        final q = _normalize(query!);
+        items = items.where((c) {
+          final name = _normalize(c.name);
+          final typeStr = _normalize(c.type);
+          final stateStr = _normalize(c.location.state ?? '');
+          return name.contains(q) || typeStr.contains(q) || stateStr.contains(q);
+        }).toList();
+      }
+
+
+      final int outPage = (data['page'] is num)
+          ? (data['page'] as num).toInt()
+          : page;
+      final int outLimit = (data['limit'] is num)
+          ? (data['limit'] as num).toInt()
+          : limit;
+      final int outTotal = (data['total'] is num)
+          ? (data['total'] as num).toInt()
+          : items.length;
+
+      // All ints here ✅
+      return Paginated<Crop>(items, outPage, outLimit, outTotal);
     }
 
     throw StateError('Unexpected /crops response type: ${data.runtimeType}');
+  }
+
+  /// Simple normalize (lowercase, strip Arabic diacritics, normalize letters)
+  String _normalize(String s) {
+    var out = s.toLowerCase();
+    const diacritics = [
+      '\u064B','\u064C','\u064D','\u064E','\u064F','\u0650','\u0651','\u0652'
+    ];
+    for (final d in diacritics) {
+      out = out.replaceAll(d, '');
+    }
+    out = out
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ى', 'ي')
+        .replaceAll('ؤ', 'و')
+        .replaceAll('ئ', 'ي')
+        .replaceAll('ة', 'ه');
+    return out.trim();
   }
 }
