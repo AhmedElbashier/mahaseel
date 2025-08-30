@@ -39,7 +39,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://mahaseel:mahaseel@localhost:5432/mahaseel"
 
     # Accept either a list or a comma-separated string from env
-    cors_origins: List[AnyHttpUrl] | List[str] | str = []
+    cors_origins: List[AnyHttpUrl] | List[str] | str = [
+        "https://app.example.com",
+        "https://admin.example.com",
+    ]
 
     model_config = SettingsConfigDict(
         env_file=".env",
