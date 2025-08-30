@@ -5,7 +5,7 @@ from datetime import timedelta
 from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import AnyHttpUrl, Field, field_validator
 
 
 def _normalize_db_url(url: str) -> str:
@@ -26,9 +26,10 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
-    jwt_secret: str = "CHANGE_ME_DEV_ONLY"
+    jwt_secret: str = Field(..., env="JWT_SECRET")
     jwt_algorithm: str = "HS256"
     jwt_access_minutes: int = 60
+    jwt_refresh_days: int = 7
 
     google_client_id: str = ""
     fb_app_id: str = ""
@@ -66,6 +67,10 @@ class Settings(BaseSettings):
         return timedelta(minutes=self.jwt_access_minutes)
 
     @property
+    def refresh_expires(self) -> timedelta:
+        return timedelta(days=self.jwt_refresh_days)
+
+    @property
     def effective_database_url(self) -> str:
         """
         Priority:
@@ -86,8 +91,8 @@ class Settings(BaseSettings):
         return _normalize_db_url(self.effective_database_url)
 
     def validate_for_runtime(self) -> None:
-        if not self.is_dev and self.jwt_secret == "CHANGE_ME_DEV_ONLY":
-            raise RuntimeError("Unsafe JWT secret in non-dev environment")
+        if not self.jwt_secret:
+            raise RuntimeError("JWT secret is not configured")
 
 
 settings = Settings()

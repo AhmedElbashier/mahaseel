@@ -4,20 +4,17 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.media import MediaOut
 from app.services.media_service import (
-    save_image_to_disk,
+    upload_image_to_s3,
     create_media_record,
     set_main_for_crop,
+    get_media_url,
+    delete_media_from_s3,
 )
 from app.models.crop import Crop
-import os
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from app.core.ratelimit import limiter
 
 router = APIRouter(prefix="/media", tags=["media"])
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/uploads")  
 MAX_BYTES = 10 * 1024 * 1024  # 10MB max upload
 
 
@@ -25,11 +22,10 @@ MAX_BYTES = 10 * 1024 * 1024  # 10MB max upload
 @router.post("/upload", response_model=MediaOut)
 async def upload_media(
     request: Request,
-    crop_id: int = Form(...),         
-    is_main: bool = Form(False),       
+    crop_id: int = Form(...),
+    is_main: bool = Form(False),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-
 ):
     # 1) Basic validations
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -45,9 +41,8 @@ async def upload_media(
     if not crop:
         raise HTTPException(404, "Crop not found")
 
-    # 3) Save + downscale
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    filename, width, height = save_image_to_disk(UPLOAD_DIR, blob)
+    # 3) Upload to storage
+    filename, width, height = upload_image_to_s3(blob)
 
     # 4) Create DB row
     media = create_media_record(
@@ -69,7 +64,7 @@ async def upload_media(
     # Build URL (client will GET this)
     return MediaOut(
         id=media.id,
-        url=f"/static/{media.path}",
+        url=get_media_url(media.path),
         is_main=media.is_main,
         width=media.width,
         height=media.height,
@@ -79,7 +74,7 @@ async def upload_media(
 
 @limiter.limit("60/minute")
 @router.post("/{media_id}/make-main")
-def make_main(request: Request,media_id: int, db: Session = Depends(get_db)):
+def make_main(request: Request, media_id: int, db: Session = Depends(get_db)):
     from app.models.media import Media
 
     m = db.query(Media).get(media_id)
@@ -91,7 +86,7 @@ def make_main(request: Request,media_id: int, db: Session = Depends(get_db)):
     set_main_for_crop(db, m)
     db.commit()
     db.refresh(m)
-    return {"id": m.id, "url": f"/static/{m.path}", "is_main": m.is_main}
+    return {"id": m.id, "url": get_media_url(m.path), "is_main": m.is_main}
 
 
 @limiter.limit("60/minute")
@@ -112,7 +107,7 @@ def list_media_for_crop(
     return [
         {
             "id": m.id,
-            "url": f"/static/{m.path}",
+            "url": get_media_url(m.path),
             "is_main": m.is_main,
             "width": m.width,
             "height": m.height,
@@ -123,7 +118,7 @@ def list_media_for_crop(
 
 @limiter.limit("60/minute")
 @router.delete("/{media_id}")
-def delete_media(request: Request,media_id: int, db: Session = Depends(get_db)):
+def delete_media(request: Request, media_id: int, db: Session = Depends(get_db)):
     from app.models.media import Media
 
     m = db.query(Media).get(media_id)
@@ -134,17 +129,8 @@ def delete_media(request: Request,media_id: int, db: Session = Depends(get_db)):
             400, "Cannot delete main image; set another one as main first"
         )
 
-    # delete file from disk (best-effort)
-    import os
-
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploads")
-    abs_path = os.path.join(UPLOAD_DIR, m.path)
-    try:
-        if os.path.isfile(abs_path):
-            os.remove(abs_path)
-    except Exception:
-        pass  # ignore file errors; DB remains source of truth
+    # delete from storage (best-effort)
+    delete_media_from_s3(m.path)
 
     db.delete(m)
     db.commit()

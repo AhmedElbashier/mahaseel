@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -88,3 +89,17 @@ app.include_router(auth_social_router)
 app.include_router(favorites_routes)
 app.include_router(chat_routes)
 app.include_router(ws_routes)
+api_router = APIRouter(prefix="/api/v1")
+api_router.include_router(auth_router)
+api_router.include_router(auth_me_router)
+api_router.include_router(admin_routes)
+api_router.include_router(crops_router)
+api_router.include_router(media_router)
+api_router.include_router(contact_router)
+api_router.include_router(rating_routes)
+api_router.include_router(order_routes)
+api_router.include_router(auth_social_router)
+api_router.include_router(favorites_routes)
+api_router.include_router(chat_routes)
+api_router.include_router(ws_routes)
+app.include_router(api_router)
