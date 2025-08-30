@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'logging_interceptor.dart';
 
 class ApiClient {
@@ -23,7 +24,11 @@ class ApiClient {
     if (_initialized) return;
     _initialized = true;
 
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://127.0.0.1:8000';
+    final baseUrl =
+        dotenv.env['API_BASE_URL'] ?? 'https://staging.mahaseel.com';
+    if (kReleaseMode && !baseUrl.startsWith('https://')) {
+      throw StateError('API_BASE_URL must use HTTPS in release builds');
+    }
 
     dio = Dio(BaseOptions(
       baseUrl: baseUrl,
