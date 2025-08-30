@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/favourites_controller.dart';
 import '../widgets/manage_lists_bottom_sheet.dart';
 import 'favourites_list_screen.dart';
+import '../../../core/ui/empty_state.dart';
 
 class FavouritesHomeScreen extends ConsumerStatefulWidget {
   const FavouritesHomeScreen({super.key});
@@ -76,7 +77,11 @@ class _FavouritesHomeScreenState extends ConsumerState<FavouritesHomeScreen> {
 
           Expanded(
             child: (st.selectedListId == null)
-                ? const Center(child: Text('No list selected'))
+                ? const EmptyState(
+                    icon: Icons.favorite_border,
+                    title: 'No list selected',
+                    message: 'Create or select a list',
+                  )
                 : FavouritesListScreen(listId: st.selectedListId!),
           ),
         ],

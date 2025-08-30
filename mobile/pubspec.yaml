@@ -70,6 +70,8 @@ dependencies:
   jwt_decode: ^0.3.1
   font_awesome_flutter: ^10.10.0
   web_socket_channel: ^2.4.0
+  screen_protector: ^1.4.2+1
+  flutter_gen: ^5.11.0
 
 dev_dependencies:
   flutter_test:
@@ -97,7 +99,7 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
+  generate: true
   # To add assets to your application, add an assets section, like this:
   assets:
     - .env

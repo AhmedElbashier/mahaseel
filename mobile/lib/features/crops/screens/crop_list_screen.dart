@@ -13,6 +13,10 @@ import '../data/crops_repo.dart' show SortOption;
 import '../data/crop_filters.dart';
 
 import '../../favorites/state/favourites_controller.dart';
+import '../../../core/ui/toast.dart';
+// TODO: localize
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../../core/ui/empty_state.dart';
 import '../../favorites/widgets/add_to_list_sheet.dart';
 import '../../auth/state/auth_controller.dart'; // adjust path if different
 
@@ -243,7 +247,16 @@ class _CropListScreenState extends ConsumerState<CropListScreen>
       SortOption.priceAsc: 'تم الترتيب: السعر من الأقل للأعلى',
       SortOption.priceDesc: 'تم الترتيب: السعر من الأعلى للأقل',
     }[next]!;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    // localized override
+    // TODO: localize
+    // final t = AppLocalizations.of(context);
+    final msg2 = {
+      // TODO: localize
+      // SortOption.newest: (t?.sortNewest ?? 'Sorted: newest'),
+      // SortOption.priceAsc: (t?.sortPriceAsc ?? 'Sorted: price low to high'),
+      // SortOption.priceDesc: (t?.sortPriceDesc ?? 'Sorted: price high to low'),
+    }[next]!;
+    showToast(context, msg2);
   }
 
   Future<void> _setSortNewest() async {
@@ -504,7 +517,15 @@ class _CropListScreenState extends ConsumerState<CropListScreen>
     }
 
     if (items.isEmpty) {
-      return [SliverToBoxAdapter(child: _EmptyCard())];
+      return [
+        const SliverToBoxAdapter(
+          child: EmptyState(
+            icon: Icons.agriculture_outlined,
+            title: 'No results',
+            message: 'Try adjusting filters or search terms',
+          ),
+        ),
+      ];
     }
 
     return [

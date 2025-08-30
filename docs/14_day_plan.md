@@ -71,3 +71,50 @@ Day	Focus
 ### Day 12 — UX, i18n, accessibility
 - Polish loading/empty/error states; RTL review for Arabic.
 - Accessibility: contrast, touch targets, labels, large text.
+
+### Progress — 2025-08-30
+- Day 2 (Auth rate limits + OTP lockouts): done
+  - SlowAPI per-IP rate limits on `/auth/login` and `/auth/verify` (`5/min`).
+  - OTP lockout persisted per phone with `failed_attempts` + `locked_until` and handler in `/auth/verify`.
+  - Alembic migration: `backend/app/migrations/versions/d9b3a1e7c2ab_add_otp_lockout_fields.py`.
+- Day 3 (JWT rotation + refresh tokens): done
+  - Issue `refresh_token` on `/auth/verify`; added `/auth/refresh` endpoint.
+  - `TokenOut` extended; access token default TTL lowered to 15m via config (env-overridable).
+- Day 4 (CORS + security headers): done
+  - SecurityHeadersMiddleware (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
+  - HSTS + HTTPSRedirect in non-dev; keep TrustedHost placeholder; CORS via `settings.cors_origins`.
+- Day 7 (Mobile HTTPS + telemetry): in progress
+  - Enforce HTTPS base URL in release; centralized PII-safe network logging; iOS screenshot prevention (plugin), Android already secure.
+  - Connectivity banner in Home Shell; centralized toast helper; started replacing SnackBars.
+- Day 12 (UX/i18n/accessibility): in progress
+  - Localization scaffolding (gen_l10n) with ARB for ar/en; initial keys (no-internet, tab labels, sort toasts, common labels).
+  - EmptyState widget added and integrated into Favorites Home (no list), Chats List (no conversations), and Crops List (no results).
+  - Localized crop sort toasts (newest/price asc/desc) and switched to toast helper.
+
+Next (short-term)
+- Finish localizing Home Shell (offline banner + bottom tabs) and App Drawer labels; swap remaining SnackBars for toasts across notifications/profile/support/map picker.
+- Extend EmptyState into more lists as needed and move remaining hardcoded strings to ARB.
+
+
+
+### What’s still left (priority)
+```
+! Home Shell
+  Localize offline banner + bottom tabs.
+! App Drawer
+  Localize all labels; replace “coming soon” SnackBars with showToast.
+! SnackBars → toasts
+  Notifications, Profile, Map Picker (Support done).
+! Crops list
+  Finish the two remaining sort toasts (newest, asc/desc) where SnackBar is still used.
+! EmptyState
+  Add to any remaining “no data” lists you care about (we covered Crops, Chats, Favourites Home).
+! ARB sweep
+  Move remaining visible strings (drawer items, banners, sort labels, button tooltips) into ARB, then run: flutter pub get; flutter gen-l10n.
+
+
+!!Nice-to-have (optional)
+
+! Per-phone limiter key in backend (in addition to lockouts), if you want stricter rate limiting semantics.
+! Verify Alembic migration applied in each env; set CORS_ORIGINS/JWT in staging/prod.
+```

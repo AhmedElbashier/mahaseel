@@ -132,12 +132,15 @@ class AuthController extends StateNotifier<AuthState> {
     final phone = state.phone!;
     state = state.copyWith(loading: true, error: null);
     try {
-      final token = await ref
+      final tokens = await ref
           .read(authRepoProvider)
           .verify(phone: phone, otp: otp);
 
       // Save token first
-      await ApiClient().saveToken(token);
+      await ApiClient().saveTokens(
+        access: tokens['access_token'] ?? '',
+        refresh: tokens['refresh_token'],
+      );
 
       // Mark authed
       state = state.copyWith(
@@ -261,3 +264,4 @@ class AuthController extends StateNotifier<AuthState> {
 
 
 }
+

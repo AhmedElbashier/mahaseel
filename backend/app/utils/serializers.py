@@ -2,6 +2,7 @@
 from decimal import Decimal
 from typing import Any, Iterable, Optional
 from fastapi import Request
+from urllib.parse import urljoin
 
 from app.models.crop import Crop
 from app.services.media_service import get_media_url
@@ -26,9 +27,12 @@ def _media_url_rel(m) -> Optional[str]:
     return None
 
 
-def _media_url_abs(request: Optional[Request], m) -> Optional[str]:
-    rel = _media_url_rel(m)
-    return abs_url(request, rel) if rel else None
+
+def _media_url_abs(request, m):
+    rel_or_abs = _media_url_rel(m)      # calls get_media_url(...)
+    if rel_or_abs.startswith("http://") or rel_or_abs.startswith("https://"):
+        return rel_or_abs
+    return urljoin(str(request.base_url), rel_or_abs.lstrip("/"))
 
 
 def _images_array(request: Optional[Request], media_list: Iterable) -> list[str]:

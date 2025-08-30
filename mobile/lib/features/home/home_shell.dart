@@ -2,9 +2,13 @@
 // lib/features/home/home_shell.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mahaseel/services/connectivity_provider.dart';
+// TODO: localize
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
-class HomeShell extends StatelessWidget {
+class HomeShell extends ConsumerWidget {
   final Widget child;
   // final String title;
   final int currentIndex;
@@ -22,9 +26,10 @@ class HomeShell extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final online = ref.watch(connectivityStreamProvider).maybeWhen(data: (v) => v, orElse: () => true);
     // final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return Directionality(
@@ -65,9 +70,24 @@ class HomeShell extends StatelessWidget {
           ],
         ),
 
-        // Enhanced body with safe area
+        // Enhanced body with safe area + offline banner
           body: SafeArea(
-            child: child,
+            child: Column(
+              children: [
+                if (!online)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    color: Colors.amber.shade700,
+                    child: const Text(
+                      'لا يوجد اتصال بالإنترنت',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                Expanded(child: child),
+              ],
+            ),
           ),
 
         // Modern bottom navigation with Material 3 design

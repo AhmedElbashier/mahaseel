@@ -3,6 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// TODO: localize
+// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:mahaseel/services/api_client.dart';
 
 import 'core/theme/app_theme.dart';
@@ -87,6 +89,9 @@ class MahaseelApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
+      // TODO: localize
+      // localizationsDelegates: AppLocalizations.localizationsDelegates,
+      // supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
     );
   }

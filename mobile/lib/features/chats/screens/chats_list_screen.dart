@@ -5,6 +5,7 @@ import '../../../services/api_client.dart';
 import '../data/chat_repo.dart';
 import '../models/chats.dart';
 import './chats_thread_screen.dart';
+import '../../../core/ui/empty_state.dart';
 
 final scopeProvider = StateProvider<String>((_) => 'all'); // all | buying | selling
 
@@ -64,7 +65,13 @@ class ChatListScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             Expanded(
               child: convs.when(
-                data: (items) => ListView.separated(
+                data: (items) => items.isEmpty
+                    ? const EmptyState(
+                        icon: Icons.chat_bubble_outline,
+                        title: 'No conversations yet',
+                        message: 'Start chatting with sellers and buyers',
+                      )
+                    : ListView.separated(
                   itemCount: items.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (ctx, i) {

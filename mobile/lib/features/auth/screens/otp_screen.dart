@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/navigation/safe_back_button.dart';
 import '../state/auth_controller.dart';
 import 'package:mahaseel/core/ui/responsive_scaffold.dart';
+import 'package:mahaseel/core/ui/toast.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   final String phone;
@@ -174,9 +175,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> with TickerProviderStateM
       }
       if (next.error != null && next.error != prev?.error) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.error!)),
-        );
+        // Prefer centralized toast helper
+        showToast(context, next.error!);
       }
     });
 
@@ -445,14 +445,18 @@ class _VerifyButtonState extends State<_VerifyButton> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: _enabled ? (_) => _controller.forward() : null,
-      onTapUp: _enabled ? (_) => _controller.reverse() : null,
-      onTapCancel: () => _controller.reverse(),
-      onTap: widget.onPressed,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: AnimatedContainer(
+    return Semantics(
+      button: true,
+      label: 'تأكيد الرمز',
+      enabled: _enabled,
+      child: GestureDetector(
+        onTapDown: _enabled ? (_) => _controller.forward() : null,
+        onTapUp: _enabled ? (_) => _controller.reverse() : null,
+        onTapCancel: () => _controller.reverse(),
+        onTap: widget.onPressed,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           width: double.infinity,
           height: 60,
@@ -508,6 +512,7 @@ class _VerifyButtonState extends State<_VerifyButton> with SingleTickerProviderS
               ),
             ],
           ),
+        ),
         ),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:mahaseel/core/ui/toast.dart';
 
 import 'package:mahaseel/features/auth/state/auth_controller.dart';
 import '../models/chats.dart';
@@ -152,12 +153,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         );
                       } catch (e) {
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Unexpected error: $e'),
-                            backgroundColor: Theme.of(context).colorScheme.error,
-                          ),
-                        );
+                        // use centralized toast helper
+                        showToast(context, 'Unexpected error: $e');
                       }
                     },
                   )

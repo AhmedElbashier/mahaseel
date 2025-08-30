@@ -20,8 +20,29 @@ import '../features/location/map_picker_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final auth = ref.watch(authControllerProvider);
+  bool requiresAuth(String loc) {
+    return loc.startsWith('/home') ||
+        loc.startsWith('/chats') ||
+        loc.startsWith('/add-crop') ||
+        loc.startsWith('/favorites') ||
+        loc.startsWith('/menu') ||
+        loc.startsWith('/crops');
+  }
+
   return GoRouter(
     initialLocation: '/',
+    redirect: (context, state) {
+      final loc = state.matchedLocation;
+      final loggingIn = loc.startsWith('/login') || loc.startsWith('/signup');
+      if (!auth.isAuthenticated && requiresAuth(loc)) {
+        return '/login';
+      }
+      if (auth.isAuthenticated && loggingIn) {
+        return '/home';
+      }
+      return null;
+    },
     routes: [
       // Splash Screen
       GoRoute(

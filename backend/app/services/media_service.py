@@ -7,6 +7,8 @@ import boto3
 import clamd
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.orm import Session
+from app.core.config import settings  # however you load settings
+from urllib.parse import urljoin
 
 from app.models.media import Media
 
@@ -67,16 +69,19 @@ def upload_image_to_s3(file_bytes: bytes) -> tuple[str, int, int]:
     return key, width, height
 
 
-def get_media_url(key: str, *, expires_in: int = 3600) -> str:
-    """Return a CDN URL if configured, otherwise a presigned S3 URL."""
-    if CDN_BASE_URL:
-        return f"{CDN_BASE_URL.rstrip('/')}/{key}"
-    s3 = boto3.client("s3")
-    return s3.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": S3_BUCKET, "Key": key},
-        ExpiresIn=expires_in,
-    )
+def get_media_url(path: str) -> str:
+    # Always normalize to a relative URL for local
+    if getattr(settings, "MEDIA_BACKEND", "local") != "s3":
+        # e.g. "/static/uploads/xyz.jpg"
+        rel = f"{getattr(settings, 'STATIC_URL', '/static').rstrip('/')}/{path.lstrip('/')}"
+        return rel
+    # S3 path (only if bucket configured)
+    bucket = getattr(settings, "S3_BUCKET", "")
+    if not bucket:
+        # fall back instead of crashing
+        rel = f"{getattr(settings, 'STATIC_URL', '/static').rstrip('/')}/{path.lstrip('/')}"
+        return rel
+
 
 
 def delete_media_from_s3(key: str) -> None:

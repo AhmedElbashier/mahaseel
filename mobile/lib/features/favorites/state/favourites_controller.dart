@@ -1,6 +1,7 @@
 // lib/features/favourite/state/favourites_controller.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/ui/toast.dart';
 import '../data/favorites_repo.dart';
 import 'favorite_providers.dart';
 
@@ -147,9 +148,7 @@ class FavouritesController extends StateNotifier<FavouritesState> {
       }
 
       // feedback like Dubizzle
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(turnedOff ? 'Removed from favourites' : 'Saved to favourites')),
-      );
+      showToast(context, turnedOff ? 'Removed from favourites' : 'Saved to favourites');
     } catch (e) {
       // revert optimistic change if failed
       if (usingDefault) {
@@ -157,9 +156,7 @@ class FavouritesController extends StateNotifier<FavouritesState> {
         if (next.contains(cropId)) next.remove(cropId); else next.add(cropId);
         state = state.copyWith(favoritedCropIdsDefault: next);
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Couldn\'t update favourite. Try again.')),
-      );
+      showToast(context, 'Couldn\'t update favourite. Try again.');
     }
   }
 
@@ -168,7 +165,7 @@ class FavouritesController extends StateNotifier<FavouritesState> {
     final newLists = List<FavoriteListVM>.from(state.lists)
       ..add(FavoriteListVM(id: list.id, name: list.name, isDefault: list.isDefault, count: 0));
     state = state.copyWith(lists: newLists);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('List created')));
+    showToast(context, 'List created');
   }
 
   Future<void> renameList(BuildContext context, int listId, String name) async {
@@ -177,7 +174,7 @@ class FavouritesController extends StateNotifier<FavouritesState> {
         ? FavoriteListVM(id: l.id, name: res.name, isDefault: l.isDefault, count: l.count)
         : l).toList();
     state = state.copyWith(lists: newLists);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('List renamed')));
+    showToast(context, 'List renamed');
   }
 
   Future<void> deleteList(BuildContext context, int listId) async {
@@ -188,7 +185,7 @@ class FavouritesController extends StateNotifier<FavouritesState> {
         ? (newLists.isNotEmpty ? newLists.first.id : null)
         : state.selectedListId;
     state = state.copyWith(lists: newLists, itemsByList: map, selectedListId: newSelected);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('List deleted')));
+    showToast(context, 'List deleted');
   }
 }
 
