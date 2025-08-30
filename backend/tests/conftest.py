@@ -9,7 +9,6 @@ from app.models import User, Role
 from app.models.media import Media
 from app.main import app
 from app.db.session import get_db
-from app.core import otp_store
 from app.core.security import create_access_token
 
 @pytest.fixture
@@ -40,7 +39,6 @@ def client(db):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
-    otp_store._store.clear()
 
 @pytest.fixture
 def auth_headers(client):
