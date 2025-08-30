@@ -1,11 +1,11 @@
 # Mahaseel API Documentation
 
-Base URL: `https://staging.mahaseel.com`
+Base URL: `https://staging.mahaseel.com/api/v1`
 
 ## Authentication
 
 ### Register
-`POST /auth/register`
+`POST /api/v1/auth/register`
 
 ```json
 {
@@ -14,18 +14,18 @@ Base URL: `https://staging.mahaseel.com`
 }
 Login
 
-POST /auth/login
+POST /api/v1/auth/login
 
 Returns JWT after OTP verification.
 
 Crops
 List Crops
 
-GET /crops?page=1&limit=20
+GET /api/v1/crops?page=1&limit=20
 
 Create Crop
 
-POST /crops
+POST /api/v1/crops
 
 {
   "name": "طماطم",
@@ -39,7 +39,7 @@ POST /crops
 
 Orders
 
-POST /orders
+POST /api/v1/orders
 
 {
   "crop_id": 1,
@@ -49,7 +49,7 @@ POST /orders
 
 Ratings
 
-POST /ratings
+POST /api/v1/ratings
 
 {
   "seller_id": 2,
@@ -58,7 +58,7 @@ POST /ratings
 
 Media Upload
 
-POST /media (multipart/form-data)
+POST /api/v1/media (multipart/form-data)
 
 
 3. Link to your live Swagger/OpenAPI UI:
