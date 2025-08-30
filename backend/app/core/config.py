@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     jwt_secret: str = Field(..., env="JWT_SECRET")
     jwt_algorithm: str = "HS256"
-    jwt_access_minutes: int = 60
+    jwt_access_minutes: int = 15
     jwt_refresh_days: int = 7
 
     google_client_id: str = ""

@@ -6,6 +6,8 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import json, logging, time, uuid
 from typing import Callable
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 import logging
 
@@ -54,6 +56,33 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
     max_age=600,
 )
+
+# Security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        # Basic hardening headers
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Permissions-Policy", "geolocation=()")
+        # Minimal CSP: adjust if serving dynamic scripts/styles
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'none'; frame-ancestors 'none'; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https:; script-src 'self'; style-src 'self' 'unsafe-inline'",
+        )
+        # HSTS only when not in dev and over HTTPS/behind TLS terminator
+        if not settings.is_dev:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+# HTTPS redirect + trusted hosts in non-dev
+if not settings.is_dev:
+    app.add_middleware(HTTPSRedirectMiddleware)
+    # Optionally set your expected domains here; keep permissive if unknown
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 app.add_middleware(RequestLogMiddleware)
 
 
