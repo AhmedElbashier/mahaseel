@@ -1,21 +1,23 @@
-from datetime import datetime, timedelta, timezone
-from jose import jwt
 from typing import Any, Optional
-from app.core.config import settings
 
-def create_access_token(subject: str | int,role: str, extra: Optional[dict[str, Any]] = None) -> str:
-    now = datetime.now(tz=timezone.utc)
-    payload: dict[str, Any] = {
-        "sub": str(subject),
-        "iat": int(now.timestamp()),
-        "exp": int((now + settings.access_expires).timestamp()),
-        "typ": "access",
-        "role": role,
+from app.core.token_service import token_service
 
-    }
-    if extra:
-        payload.update(extra)
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+def create_access_token(
+    subject: str | int, role: str, extra: Optional[dict[str, Any]] = None
+) -> str:
+    return token_service.create_access_token(subject, role, extra)
+
+
+def create_refresh_token(
+    subject: str | int, role: str, extra: Optional[dict[str, Any]] = None
+) -> str:
+    return token_service.create_refresh_token(subject, role, extra)
+
 
 def decode_token(token: str) -> dict[str, Any]:
-    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    return token_service.decode(token)
+
+
+def revoke_token(token: str) -> None:
+    token_service.revoke(token)
