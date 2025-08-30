@@ -197,7 +197,7 @@ class AppDrawer extends ConsumerWidget {
                       Navigator.pop(context);
                       await ref.read(authControllerProvider.notifier).logout();
                       if (context.mounted) {
-                        context.go('/');
+                        context.go('/login');
                       }
                     },
                   ),

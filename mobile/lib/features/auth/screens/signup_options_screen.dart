@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:mahaseel/core/navigation/nav_extensions.dart';
+import '../../../core/navigation/safe_back_button.dart';
+import '../../../core/ui/responsive_scaffold.dart';
 import '../state/auth_controller.dart';
 
 class SignupOptionsScreen extends ConsumerStatefulWidget {
@@ -53,184 +56,132 @@ class _SignupOptionsScreenState extends ConsumerState<SignupOptionsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
+    final auth = ref.watch(authControllerProvider);
 
-    return Scaffold(
+    return ResponsiveScaffold(
       extendBodyBehindAppBar: true,
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),     // ↓ smaller top gap
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(
-            Icons.arrow_back_ios,
-            color: Colors.white,
-          ),
+        toolbarHeight: 44,                                   // ↓ slimmer bar
+        leading: const SafeBackButton(fallbackPath: '/login'),
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF2E7D32), Color(0xFF1976D2)],
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2E7D32), // Mahaseel green
-              Color(0xFF1976D2), // Mahaseel blue
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          FadeTransition(
+            opacity: _fadeAnimation,
             child: Column(
               children: [
-                const SizedBox(height: 40),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  ),
+                  child: const Icon(Icons.person_add_rounded, size: 50, color: Colors.white),
+                ),
+                const SizedBox(height: 18),
+                const Text('انضم إلينا!',
+                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                const SizedBox(height: 6),
+                Text('أنشئ حسابك الجديد وابدأ التداول',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))),
+              ],
+            ),
+          ),
 
-                // Header Section
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.person_add_rounded,
-                          size: 50,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'انضم إلينا!',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'أنشئ حسابك الجديد وابدأ التداول',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
+          const SizedBox(height: 36),
+
+          SlideTransition(
+            position: _slideAnimation,
+            child: Column(
+              children: [
+                _GlassMorphicAuthButton(
+                  onPressed: () => context.push('/signup/phone'),     // stackable page
+                  icon: Icons.smartphone_rounded,
+                  label: 'رقم الهاتف',
+                  subtitle: 'أنشئ حسابك برقم هاتفك',
+                  color: const Color(0xFF4CAF50),
+                  loading: false,
+                ),
+                const SizedBox(height: 16),
+                _GlassMorphicAuthButton(
+                  onPressed: auth.loading ? null : () => _handleGoogleSignup(ref),
+                  icon: FontAwesomeIcons.google,
+                  label: 'Google',
+                  subtitle: 'استخدم حساب Google الخاص بك',
+                  color: const Color(0xFFDB4437),
+                  loading: auth.loading,
+                ),
+                const SizedBox(height: 16),
+                _GlassMorphicAuthButton(
+                  onPressed: auth.loading ? null : () => _handleFacebookSignup(ref),
+                  icon: FontAwesomeIcons.facebook,
+                  label: 'Facebook',
+                  subtitle: 'استخدم حساب Facebook الخاص بك',
+                  color: const Color(0xFF1877F2),
+                  loading: auth.loading,
+                ),
+              ],
+            ),
+          ),
+
+          const Spacer(),
+
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              children: [
+                Text('لديك حساب بالفعل؟',
+                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16)),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => context.safePopOrGo('/login'),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                    ),
+                    child: const Text('تسجيل الدخول',
                         textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 60),
-
-                // Signup Options
-                SlideTransition(
-                  position: _slideAnimation,
-                  child: Column(
-                    children: [
-                      _GlassMorphicAuthButton(
-                        onPressed: () => context.push('/signup/phone'),
-                        icon: Icons.smartphone_rounded,
-                        label: 'رقم الهاتف',
-                        subtitle: 'أنشئ حسابك برقم هاتفك',
-                        color: const Color(0xFF4CAF50),
-                        loading: false,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      _GlassMorphicAuthButton(
-                        onPressed: authState.loading ? null : () => _handleGoogleSignup(ref),
-                        icon: FontAwesomeIcons.google,
-                        label: 'Google',
-                        subtitle: 'استخدم حساب Google الخاص بك',
-                        color: const Color(0xFFDB4437),
-                        loading: authState.loading,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      _GlassMorphicAuthButton(
-                        onPressed: authState.loading ? null : () => _handleFacebookSignup(ref),
-                        icon: FontAwesomeIcons.facebook,
-                        label: 'Facebook',
-                        subtitle: 'استخدم حساب Facebook الخاص بك',
-                        color: const Color(0xFF1877F2),
-                        loading: authState.loading,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Login button
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    children: [
-                      Text(
-                        'لديك حساب بالفعل؟',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      GestureDetector(
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.5),
-                              width: 2,
-                            ),
-                          ),
-                          child: const Text(
-                            'تسجيل الدخول',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ],
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
+
   void _handleGoogleSignup(WidgetRef ref) async {
     await ref.read(authControllerProvider.notifier).loginWithGoogle();
     if (mounted && ref.read(authControllerProvider).pendingOAuthData != null) {
-      context.push('/auth/oauth-details');
+      context.push('/oauth/oauth-details');
     }
   }
 
   void _handleFacebookSignup(WidgetRef ref) async {
     await ref.read(authControllerProvider.notifier).loginWithFacebook();
     if (mounted && ref.read(authControllerProvider).pendingOAuthData != null) {
-      context.push('/auth/oauth-details');
+      context.push('/oauth/oauth-details');
     }
   }
 }

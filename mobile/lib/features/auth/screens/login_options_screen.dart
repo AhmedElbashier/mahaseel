@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../state/auth_controller.dart';
+import '../../../core/ui/responsive_scaffold.dart';
 
 class LoginOptionsScreen extends ConsumerStatefulWidget {
   const LoginOptionsScreen({super.key});
@@ -55,9 +56,14 @@ class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen>
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
 
-    return Scaffold(
+    return ResponsiveScaffold(
       extendBodyBehindAppBar: true,
-      body: Container(
+      safeTop: false,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 0,
+      ),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -65,6 +71,8 @@ class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen>
             colors: [
               Color(0xFF2E7D32), // Mahaseel green
               Color(0xFF1976D2), // Mahaseel blue
+              // Color(0xFF4CAF50),
+              // Color(0xFF2E7D32),
             ],
           ),
         ),
@@ -73,7 +81,7 @@ class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen>
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
 
                 // Header Section
                 FadeTransition(
@@ -92,7 +100,7 @@ class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen>
                         ),
                         child: const Icon(
                           Icons.login_rounded,
-                          size: 50,
+                          size: 40,
                           color: Colors.white,
                         ),
                       ),
@@ -100,7 +108,7 @@ class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen>
                       const Text(
                         'مرحباً بعودتك!',
                         style: TextStyle(
-                          fontSize: 32,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -118,7 +126,7 @@ class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen>
                   ),
                 ),
 
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
 
                 // Login Options
                 SlideTransition(
@@ -205,23 +213,31 @@ class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen>
             ),
           ),
         ),
-      ),
     );
   }
 
   void _handleGoogleLogin(WidgetRef ref) async {
     await ref.read(authControllerProvider.notifier).loginWithGoogle();
-    if (mounted && ref.read(authControllerProvider).pendingOAuthData != null) {
-      context.push('/auth/oauth-details');
-    }
+    final pending = ref.read(authControllerProvider).pendingOAuthData;
+    if (!mounted || pending == null) return;
+
+    context.go('/oauth/oauth-details', extra: {
+      'provider': 'google',    // normalize to lowercase
+      'oauthData': pending,
+    });
   }
 
   void _handleFacebookLogin(WidgetRef ref) async {
     await ref.read(authControllerProvider.notifier).loginWithFacebook();
-    if (mounted && ref.read(authControllerProvider).pendingOAuthData != null) {
-      context.push('/auth/oauth-details');
-    }
+    final pending = ref.read(authControllerProvider).pendingOAuthData;
+    if (!mounted || pending == null) return;
+
+    context.go('/oauth/oauth-details', extra: {
+      'provider': 'facebook',
+      'oauthData': pending,
+    });
   }
+
 }
 
 class _GlassMorphicAuthButton extends StatefulWidget {

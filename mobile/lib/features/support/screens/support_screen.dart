@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/navigation/safe_back_button.dart';
+
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
 
@@ -84,10 +86,7 @@ class _SupportScreenState extends State<SupportScreen> {
           centerTitle: true,
           backgroundColor: Colors.green[700],
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.pop(),
-          ),
+          leading: const SafeBackButton(fallbackPath: '/home'),
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),

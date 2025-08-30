@@ -13,24 +13,37 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _navigated = false; // prevent double navigation
+
   @override
   void initState() {
     super.initState();
-    _checkAuthStatus();
+    _routeAfterReady();
   }
-
-  void _checkAuthStatus() async {
+  Future<void> _routeAfterReady() async {
+    // Wait at least 2s
     await Future.delayed(const Duration(seconds: 2));
 
-    if (!mounted) return;
-
-    final authState = ref.read(authControllerProvider);
-
-    if (authState.isAuthenticated && authState.user != null) {
-      context.go('/home');
-    } else {
-      context.go('/login');
+    // Also wait until auth bootstrap finishes
+    while (mounted && !ref.read(authControllerProvider).bootstrapped) {
+      await Future.delayed(const Duration(milliseconds: 50));
     }
+
+    if (!mounted) return;
+    final s = ref.read(authControllerProvider);
+    context.go(s.isAuthenticated && s.user != null ? '/home' : '/login');
+  }
+
+
+  Future<void> _checkAuthStatus() async {
+    await Future.delayed(const Duration(seconds: 3)); // always wait 2s
+    if (!mounted || _navigated) return;
+
+    final auth = ref.read(authControllerProvider);
+    final toHome = auth.isAuthenticated && auth.user != null;
+
+    _navigated = true;
+    context.go(toHome ? '/home' : '/login');
   }
 
   @override
@@ -42,8 +55,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF4CAF50),
-              Color(0xFF2E7D32),
+              // Color(0xFF4CAF50),
+              // Color(0xFF2E7D32),
+              Color(0xFF2E7D32), // Mahaseel green
+              Color(0xFF1976D2), // Mahaseel blue
             ],
           ),
         ),
@@ -57,8 +72,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(100),
                 ),
-                child: Lottie.network(
-                  'https://assets2.lottiefiles.com/packages/lf20_jcikwtux.json',
+                child: Lottie.asset(
+                  'assets/splash.json',
                   width: 120,
                   height: 120,
                   repeat: true,

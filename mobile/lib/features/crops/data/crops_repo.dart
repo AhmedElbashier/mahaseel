@@ -38,7 +38,7 @@ class CropsRepo {
     final crop = Crop.fromJson(res.data as Map<String, dynamic>);
     // DEBUG
     // ignore: avoid_print
-    print('repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}');
+    //print('repo.getById -> sellerPhone=${crop.sellerPhone}, sellerName=${crop.sellerName}');
     return crop;
   }
 

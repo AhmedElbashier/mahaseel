@@ -36,6 +36,7 @@ class AuthState {
   final String? phone;
   final AppUser? user;
   final Map<String, dynamic>? pendingOAuthData; // For OAuth completion flow
+  final bool bootstrapped;
 
   const AuthState({
     this.isAuthenticated = false,
@@ -45,6 +46,8 @@ class AuthState {
     this.phone,
     this.user,
     this.pendingOAuthData,
+    this.bootstrapped = false,
+
   });
 
   AuthState copyWith({
@@ -55,6 +58,7 @@ class AuthState {
     String? phone,
     AppUser? user,
     Map<String, dynamic>? pendingOAuthData,
+    bool? bootstrapped,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -64,6 +68,7 @@ class AuthState {
       phone: phone ?? this.phone,
       user: user,
       pendingOAuthData: pendingOAuthData,
+        bootstrapped: bootstrapped ?? this.bootstrapped,
     );
   }
 }
@@ -84,12 +89,14 @@ class AuthController extends StateNotifier<AuthState> {
 
   /// On app start, if we already have a token → mark authenticated and load profile.
   Future<void> _bootstrap() async {
-    final has = await ApiClient().hasToken();
+    final has = await ApiClient().hasToken(); // should read from secure storage
     state = state.copyWith(isAuthenticated: has);
     if (has) {
-      await _loadProfile(); // try to populate user for UI
+      await _loadProfile();  // optional; might be quick or not
     }
+    state = state.copyWith(bootstrapped: true);  // ✅ tell UI we’re done restoring
   }
+
 
   Future<void> startLogin(String phone) async {
     state = state.copyWith(loading: true, error: null, phone: phone);
@@ -113,28 +120,33 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> verifyOtp(String otp) async {
+  Future<bool> verifyOtp(String otp) async {
     final phone = state.phone!;
     state = state.copyWith(loading: true, error: null);
     try {
-      final token =
-      await ref.read(authRepoProvider).verify(phone: phone, otp: otp);
+      final token = await ref.read(authRepoProvider).verify(phone: phone, otp: otp);
 
-      // IMPORTANT: Save token before any follow-up calls
+      // Save token first
       await ApiClient().saveToken(token);
 
-      // Mark authenticated, then load user profile
+      // Mark authed
       state = state.copyWith(
         loading: false,
         isAuthenticated: true,
         devOtp: null,
       );
 
-      await _loadProfile(); // populate state.user for UI (name/role/phone)
+      // You can fire-and-forget; don't block navigation
+      // unawaited(_loadProfile());
+      _loadProfile(); // it's fine to await or not; doesn't affect navigation now
+
+      return true;                           // ✅ tell caller success
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
+      return false;                          // ✅ tell caller failure
     }
   }
+
 
   /// OAuth Login Methods
   Future<void> loginWithGoogle() async {

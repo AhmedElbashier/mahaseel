@@ -1,31 +1,33 @@
-# app/core/otp_store.py
-from time import time
-from threading import Lock
-from typing import Dict, Tuple, Optional
+from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 
-# default TTL for OTPs (seconds)
-_TTL = 5 * 60
+TTL_MINUTES = 5
 
-# phone -> (otp, expiry_ts)
-_store: Dict[str, Tuple[str, float]] = {}
-_lock = Lock()
+def put(db: Session, phone: str, code: str) -> None:
+    from app.models import OTP   # lazy import to avoid cycles
+    expires_at = datetime.utcnow() + timedelta(minutes=TTL_MINUTES)
+    row = db.query(OTP).filter(OTP.phone == phone).first()
+    if row:
+        row.code = code
+        row.expires_at = expires_at
+    else:
+        db.add(OTP(phone=phone, code=code, expires_at=expires_at))
+    db.commit()
 
-def put(phone: str, otp: str, ttl: int = _TTL) -> None:
-    with _lock:
-        _store[phone] = (otp, time() + ttl)
+def get(db: Session, phone: str) -> str | None:
+    from app.models import OTP
+    row = db.query(OTP).filter(OTP.phone == phone).first()
+    if not row:
+        return None
+    if row.expires_at < datetime.utcnow():
+        db.delete(row)
+        db.commit()
+        return None
+    return row.code
 
-def get(phone: str) -> Optional[str]:
-    with _lock:
-        item = _store.get(phone)
-        if not item:
-            return None
-        otp, exp = item
-        if time() > exp:
-            _store.pop(phone, None)
-            return None
-        return otp
-
-def pop(phone: str) -> Optional[str]:
-    with _lock:
-        item = _store.pop(phone, None)
-    return item[0] if item else None
+def pop(db: Session, phone: str) -> None:
+    from app.models import OTP
+    row = db.query(OTP).filter(OTP.phone == phone).first()
+    if row:
+        db.delete(row)
+        db.commit()

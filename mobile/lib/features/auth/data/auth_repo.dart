@@ -22,6 +22,8 @@ class AuthRepo {
   Future<String> verify({required String phone, required String otp}) async {
     final normalized = formatPhone(phone);
     final res = await _dio.post('/auth/verify', data: {'phone': normalized, 'otp': otp});
+    print('[OTP] verify phone=${formatPhone(phone)} otp=$otp');
+
     return (res.data as Map)['access_token'] as String;
   }
 }

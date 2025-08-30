@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/navigation/safe_back_button.dart';
+import '../../../core/ui/responsive_scaffold.dart';
 import '../state/auth_controller.dart';
 
 class SignupPhoneScreen extends ConsumerStatefulWidget {
@@ -163,377 +165,252 @@ class _SignupPhoneScreenState extends ConsumerState<SignupPhoneScreen>
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
 
-    return Scaffold(
+    return ResponsiveScaffold(
       extendBodyBehindAppBar: true,
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),       // ↓ smaller top gap
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          ),
-          onPressed: () => context.pop(),
+        toolbarHeight: 44,
+        leading: const SafeBackButton(fallbackPath: '/signup'),
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2E7D32), Color(0xFF1976D2)],
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF2196F3), // Mahaseel blue
-              Color(0xFF1976D2),
-              Color(0xFF0D47A1),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 20),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 8),
 
-                  // Header
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Column(
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: Column(
+                children: [
+                  const Text('إنشاء حساب جديد',
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 6),
+                  Text('انضم إلى مجتمع محاصيل',
+                      style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Profile picture
+            FadeTransition(
+                opacity: _fadeAnimation,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: _pickProfileImage,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.1),
+                        border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+                      ),
+                      child: _profileImage != null
+                          ? ClipOval(child: Image.file(_profileImage!, fit: BoxFit.cover))
+                          : const Icon(Icons.add_a_photo, size: 40, color: Colors.white),
+                    ),
+                  ),
+                )),
+            const SizedBox(height: 8),
+            Text('اضغط لإضافة صورة شخصية',
+                textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14)),
+
+            const SizedBox(height: 24),
+
+            // User type
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('نوع الحساب', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+                    ),
+                    Row(
                       children: [
-                        const Text(
-                          'إنشاء حساب جديد',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('مزارع', style: TextStyle(color: Colors.white)),
+                            subtitle: const Text('بائع المحاصيل', style: TextStyle(color: Colors.white70)),
+                            value: 'farmer',
+                            groupValue: _selectedUserType,
+                            activeColor: Colors.white,
+                            onChanged: (v) => setState(() => _selectedUserType = v!),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'انضم إلى مجتمع محاصيل',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white.withOpacity(0.8),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('مشتري', style: TextStyle(color: Colors.white)),
+                            subtitle: const Text('شراء المحاصيل', style: TextStyle(color: Colors.white70)),
+                            value: 'buyer',
+                            groupValue: _selectedUserType,
+                            activeColor: Colors.white,
+                            onChanged: (v) => setState(() => _selectedUserType = v!),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                  ],
+                ),
+              ),
+            ),
 
-                  const SizedBox(height: 40),
+            const SizedBox(height: 16),
 
-                  // Profile Picture
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: _pickProfileImage,
-                        child: Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.1),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
-                              width: 2,
-                            ),
-                          ),
-                          child: _profileImage != null
-                              ? ClipOval(
-                            child: Image.file(
-                              _profileImage!,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                              : const Icon(
-                            Icons.add_a_photo,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+            // Name
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: _buildInputField(
+                controller: _nameCtrl,
+                label: 'الاسم الكامل',
+                icon: Icons.person,
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل الاسم' : null,
+              ),
+            ),
 
-                  const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
-                  Text(
-                    'اضغط لإضافة صورة شخصية',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 14,
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // User Type Selection
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              'نوع الحساب',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  title: const Text(
-                                    'مزارع',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    'بائع المحاصيل',
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                  value: 'farmer',
-                                  groupValue: _selectedUserType,
-                                  activeColor: Colors.white,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedUserType = value!;
-                                    });
-                                  },
-                                ),
-                              ),
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  title: const Text(
-                                    'مشتري',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    'شراء المحاصيل',
-                                    style: TextStyle(color: Colors.white70),
-                                  ),
-                                  value: 'buyer',
-                                  groupValue: _selectedUserType,
-                                  activeColor: Colors.white,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _selectedUserType = value!;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Name Field
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: _buildInputField(
-                      controller: _nameCtrl,
-                      label: 'الاسم الكامل',
-                      icon: Icons.person,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل الاسم' : null,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Phone Field
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          // Country Code Dropdown
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedCountryCode,
-                                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-                                dropdownColor: const Color(0xFF1976D2),
-                                style: const TextStyle(color: Colors.white),
-                                items: _countryCodes.map((country) {
-                                  return DropdownMenuItem<String>(
-                                    value: country['code'],
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          country['flag']!,
-                                          style: const TextStyle(fontSize: 18),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          country['code']!,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(() {
-                                      _selectedCountryCode = value;
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 30,
-                            color: Colors.white.withOpacity(0.3),
-                          ),
-                          // Phone Number Input
-                          Expanded(
-                            child: TextFormField(
-                              controller: _phoneCtrl,
-                              keyboardType: TextInputType.phone,
-                              textDirection: TextDirection.ltr,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(12),
-                              ],
-                              decoration: InputDecoration(
-                                hintText: '123456789',
-                                hintStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.5),
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 16,
-                                ),
-                              ),
-                              validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل رقم الهاتف' : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Location Field
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: _buildInputField(
-                      controller: _locationCtrl,
-                      label: 'الموقع (المدينة/الولاية)',
-                      icon: Icons.location_on,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل الموقع' : null,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Bio Field
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: _buildInputField(
-                      controller: _bioCtrl,
-                      label: 'نبذة مختصرة (اختياري)',
-                      icon: Icons.edit,
-                      maxLines: 3,
-                      required: false,
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Create Account Button
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: _CreateAccountButton(
-                      onPressed: auth.loading ? null : () async {
-                        if (!_formKey.currentState!.validate()) return;
-
-                        final phone = '$_selectedCountryCode${_phoneCtrl.text.trim()}';
-                        final name = _nameCtrl.text.trim();
-
-                        await ref
-                            .read(authControllerProvider.notifier)
-                            .startSignup(name: name, phone: phone);
-                      },
-                      loading: auth.loading,
-                    ),
-                  ),
-
-                  if (auth.devOtp != null) ...[
-                    const SizedBox(height: 12),
+            // Phone
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    // Country code
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.orange.withOpacity(0.3),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedCountryCode,
+                          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                          dropdownColor: const Color(0xFF1976D2),
+                          style: const TextStyle(color: Colors.white),
+                          items: _countryCodes.map((country) {
+                            return DropdownMenuItem<String>(
+                              value: country['code'],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(country['flag']!, style: const TextStyle(fontSize: 18)),
+                                  const SizedBox(width: 8),
+                                  Text(country['code']!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (v) => setState(() => _selectedCountryCode = v ?? '+249'),
                         ),
                       ),
-                      child: Text(
-                        'OTP (dev): ${auth.devOtp}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange,
-                          fontFamily: 'monospace',
+                    ),
+                    Container(width: 1, height: 30, color: Colors.white.withOpacity(0.3)),
+                    // Number
+                    Expanded(
+                      child: TextFormField(
+                        controller: _phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        textDirection: TextDirection.ltr,
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(12)],
+                        decoration: InputDecoration(
+                          hintText: '123456789',
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                         ),
-                        textAlign: TextAlign.center,
+                        validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل رقم الهاتف' : null,
                       ),
                     ),
                   ],
-
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
             ),
-          ),
+
+            const SizedBox(height: 12),
+
+            // Location
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: _buildInputField(
+                controller: _locationCtrl,
+                label: 'الموقع (المدينة/الولاية)',
+                icon: Icons.location_on,
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل الموقع' : null,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Bio
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: _buildInputField(
+                controller: _bioCtrl,
+                label: 'نبذة مختصرة (اختياري)',
+                icon: Icons.edit,
+                maxLines: 3,
+                required: false,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Submit
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: _CreateAccountButton(
+                onPressed: auth.loading
+                    ? null
+                    : () async {
+                  if (!_formKey.currentState!.validate()) return;
+                  final phone = '$_selectedCountryCode${_phoneCtrl.text.trim()}';
+                  final name = _nameCtrl.text.trim();
+                  await ref.read(authControllerProvider.notifier).startSignup(name: name, phone: phone);
+                },
+                loading: auth.loading,
+              ),
+            ),
+
+            if (auth.devOtp != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Text('OTP (dev): ${auth.devOtp}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Colors.orange, fontFamily: 'monospace')),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+          ],
         ),
       ),
     );

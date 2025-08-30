@@ -87,6 +87,8 @@ class ApiClient {
   Future<void> clearToken() async =>
       _storage.delete(key: 'jwt');
 
-  Future<bool> hasToken() async =>
-      (await _storage.read(key: 'jwt')) != null;
+  Future<bool> hasToken() async {
+    final t = await _storage.read(key: 'jwt');
+    return t != null && t.isNotEmpty;// <-- ensure not empty
+  }
 }

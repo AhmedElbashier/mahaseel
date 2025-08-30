@@ -60,16 +60,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
-        path: '/oauth/details',
+        path: '/oauth/oauth-details',
+        // ✅ null-safe extra + fallback to Riverpod auth state
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
-          return OAuthDetailsScreen(
-            provider: extra['provider'] as String,
-            oauthData: extra['oauthData'] as Map<String, dynamic>,
+          return Consumer(
+            builder: (context, ref, _) {
+              // 1) Try to read from state.extra if present
+              String provider = 'unknown';
+              Map<String, dynamic> oauthData = const {};
+
+              final extra = state.extra;
+              if (extra is Map<String, dynamic>) {
+                provider   = (extra['provider'] as String?) ?? 'unknown';
+                oauthData  = (extra['oauthData'] as Map<String, dynamic>?) ?? const {};
+              } else {
+                // 2) Fallback: read pending data from the auth controller
+                final pending = ref.read(authControllerProvider).pendingOAuthData;
+                if (pending != null) {
+                  provider  = (pending['provider'] as String?)?.toLowerCase() ?? 'unknown';
+                  oauthData = pending;
+                }
+              }
+
+              return OAuthDetailsScreen(
+                provider: provider,
+                oauthData: oauthData,
+              );
+            },
           );
         },
       ),
-
       GoRoute(
         path: '/otp',
         builder: (context, state) {
@@ -87,10 +107,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             onTabSelected: (index) {
               switch (index) {
                 case 0: context.go('/home'); break;
-                case 1: context.go('/profile'); break;
-                case 2: context.go('/settings'); break;
+                case 1: context.go('/add-crop'); break;
+                case 2: context.go('/support'); break;
                 case 3: context.go('/support'); break;
-                case 4: context.go('/notifications'); break;
+                case 4: context.go('/settings'); break;
               }
             },
             child: child,

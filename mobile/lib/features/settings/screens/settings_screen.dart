@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/navigation/safe_back_button.dart';
 import '../state/settings_controller.dart';
 import '../../auth/state/auth_controller.dart';
 
@@ -35,10 +36,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           centerTitle: true,
           backgroundColor: Colors.green[700],
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.pop(),
-          ),
+          leading: const SafeBackButton(fallbackPath: '/home'),
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),

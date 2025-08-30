@@ -15,47 +15,61 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import 'core/app_config.dart';
 import 'core/debug/riverpod_observer.dart';
-import 'features/auth/state/auth_controller.dart';
+// import 'features/auth/state/auth_controller.dart'; // no need to instantiate a provider in main
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
 Future<void> _initHive() async {
   final dir = await getApplicationDocumentsDirectory();
   await Hive.initFlutter(dir.path);
-  await Hive.openBox('crops_cache'); // list cache
-  await Hive.openBox('crop_details'); // details cache
-  await Hive.openBox('pending_ops'); // retry queue
+  await Hive.openBox('crops_cache');   // list cache
+  await Hive.openBox('crop_details');  // details cache
+  await Hive.openBox('pending_ops');   // retry queue
 }
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
-  await _initHive();
-  ApiClient().init();
-  debugPrint('BASE_URL = ${AppConfig.apiBaseUrl}');
-  await Firebase.initializeApp();
+void main() {
+  // ✅ Put everything inside the same zone
+  runZonedGuarded(() async {
+    // (Optional in dev) make zone errors fatal early
+    // BindingBase.debugZoneErrorsAreFatal = true;
 
-  // Flutter errors → Crashlytics
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    // ✅ Initialize bindings INSIDE the zone
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Async errors outside Flutter
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+    // ✅ All async inits INSIDE the same zone
+    await dotenv.load(fileName: ".env");
+    await _initHive();
+    ApiClient().init();
 
-  final container = ProviderContainer(observers: [SimpleLogger()]);
-  StateNotifierProvider<AuthController, AuthState>((ref) {
-    return AuthController(ref);
-  });
+    debugPrint('BASE_URL = ${AppConfig.apiBaseUrl}');
 
-  runZonedGuarded(() {
-    // 👇 Provide the same container to the whole app
-    runApp(UncontrolledProviderScope(
-      container: container,
-      child: const MahaseelApp(),
-    ));
-  }, (error, stack) {
+    await Firebase.initializeApp();
+
+    // Funnel Flutter framework errors into THIS zone
+    FlutterError.onError = (FlutterErrorDetails details) {
+      // keep red error in debug
+      FlutterError.presentError(details);
+      // send to Crashlytics (handles null stack internally)
+      FirebaseCrashlytics.instance.recordFlutterError(details);
+    };
+
+    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+
+    // Riverpod root container (logs with SimpleLogger)
+    final container = ProviderContainer(observers: [SimpleLogger()]);
+
+    //  Run app inside the same zone
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MahaseelApp(),
+      ),
+    );
+  }, (Object error, StackTrace stack) {
+    // Centralized crash reporting for EVERYTHING funneled to the zone
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
   });
 }
@@ -74,13 +88,6 @@ class MahaseelApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: router,
-      // locale: locale,
-      // supportedLocales: const [Locale('ar'), Locale('en')],
-      // localizationsDelegates: const [
-      //   GlobalMaterialLocalizations.delegate,
-      //   GlobalWidgetsLocalizations.delegate,
-      //   GlobalCupertinoLocalizations.delegate,
-      // ],
     );
   }
 }

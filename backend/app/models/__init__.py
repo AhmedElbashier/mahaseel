@@ -5,5 +5,6 @@ from .crop import Crop
 from .media import Media
 from .order import Order, OrderStatus
 from .rating import Rating
+from .otps import OTP
 
-__all__ = ["User", "Role", "Crop", "Media", "Order", "OrderStatus", "Rating"]
+__all__ = ["User", "Role", "Crop", "Media", "Order", "OrderStatus", "Rating", "OTP"]
