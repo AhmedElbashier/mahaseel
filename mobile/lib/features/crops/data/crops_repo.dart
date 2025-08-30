@@ -60,24 +60,23 @@ class CropsRepo {
     required LocationData location,
     String? notes,
   }) async {
-    final res = await _dio.post(
-      '/crops',
-      data: {
-        'name': name,
-        'type': type,
-        'qty': qty,
-        'price': price,
-        'unit': unit,
-        'location': {
-          'lat': location.lat,
-          'lng': location.lng,
-          'state': location.state,
-          'locality': location.locality,
-          'address': location.address,
-        },
-        'notes': notes,
+    final body = <String, dynamic>{
+      'name': name,
+      'type': type,
+      'qty': qty,
+      'price': price,
+      'unit': unit,
+      'location': {
+        'lat': location.lat,
+        'lng': location.lng,
+        'state': location.state,
+        'locality': location.locality,
+        'address': location.address,
       },
-    );
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+
+    final res = await _dio.post('/crops', data: body);
     return Crop.fromJson(res.data as Map<String, dynamic>);
   }
 
@@ -91,7 +90,7 @@ class CropsRepo {
     String? notes,
     List<File> images = const [],
   }) async {
-    // No image support on the API yet → send JSON
+    // If there are no images, use the JSON endpoint (faster/smaller).
     if (images.isEmpty) {
       return createJson(
         name: name,
@@ -104,20 +103,24 @@ class CropsRepo {
       );
     }
 
-    final form = FormData.fromMap({
+    // Cap to 5 as the server enforces that too.
+    final files = images.take(5).toList();
+
+    // Build multipart form matching the /crops/upload endpoint contract.
+    final formMap = <String, dynamic>{
       'name': name,
       'type': type,
       'qty': qty,
       'price': price,
       'unit': unit,
-      'notes': notes,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
       'location.lat': location.lat,
       'location.lng': location.lng,
-      'location.state': location.state,
-      'location.locality': location.locality,
-      'location.address': location.address,
+      if (location.state != null) 'location.state': location.state,
+      if (location.locality != null) 'location.locality': location.locality,
+      if (location.address != null) 'location.address': location.address,
       'images': [
-        for (final f in images)
+        for (final f in files)
           await MultipartFile.fromFile(
             f.path,
             filename: f.uri.pathSegments.isNotEmpty
@@ -125,8 +128,20 @@ class CropsRepo {
                 : 'image.jpg',
           ),
       ],
-    });
-    final res = await _dio.post('/crops', data: form);
+    };
+
+    final form = FormData.fromMap(formMap);
+
+    // Send to the dedicated multipart endpoint.
+    final res = await _dio.post(
+      '/crops/upload',
+      data: form,
+      options: Options(
+        contentType: 'multipart/form-data',
+      ),
+      // onSendProgress: (sent, total) { /* hook for progress UI if needed */ },
+    );
+
     return Crop.fromJson(res.data as Map<String, dynamic>);
   }
 
@@ -172,13 +187,9 @@ class CropsRepo {
         }).toList();
       }
 
-
       final bool fullPage = items.length >= limit;
-      final int total = fullPage
-          ? (page * limit + 1)
-          : (page - 1) * limit + items.length;
+      final int total = fullPage ? (page * limit + 1) : (page - 1) * limit + items.length;
 
-      // All ints here ✅
       return Paginated<Crop>(items, page, limit, total);
     }
 
@@ -187,7 +198,6 @@ class CropsRepo {
       final itemsJson = (data['items'] as List?) ?? const [];
       List<Crop> items = _parseList(itemsJson);
 
-      // Client-side search fallback if backend ignored 'q'
       if ((query ?? '').trim().isNotEmpty && !queryParams.containsKey('q')) {
         final q = _normalize(query!);
         items = items.where((c) {
@@ -198,18 +208,10 @@ class CropsRepo {
         }).toList();
       }
 
+      final int outPage = (data['page'] is num) ? (data['page'] as num).toInt() : page;
+      final int outLimit = (data['limit'] is num) ? (data['limit'] as num).toInt() : limit;
+      final int outTotal = (data['total'] is num) ? (data['total'] as num).toInt() : items.length;
 
-      final int outPage = (data['page'] is num)
-          ? (data['page'] as num).toInt()
-          : page;
-      final int outLimit = (data['limit'] is num)
-          ? (data['limit'] as num).toInt()
-          : limit;
-      final int outTotal = (data['total'] is num)
-          ? (data['total'] as num).toInt()
-          : items.length;
-
-      // All ints here ✅
       return Paginated<Crop>(items, outPage, outLimit, outTotal);
     }
 

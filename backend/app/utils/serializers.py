@@ -33,13 +33,13 @@ def _images_array(request: Optional[Request], media_list: Iterable) -> list[str]
             out.append(u)
     return out
 
+# app/utils/serializers.py
 def serialize_crop(crop: Crop | tuple, request: Optional[Request] = None) -> dict:
     if isinstance(crop, tuple):
         crop = crop[0]
-
     media_list = getattr(crop, "media", None) or []
     main = next((m for m in media_list if getattr(m, "is_main", False)), None)
-    images = _images_array(request, media_list)   # <-- add this
+    images = _images_array(request, media_list)
 
     return {
         "id": crop.id,
@@ -60,5 +60,7 @@ def serialize_crop(crop: Crop | tuple, request: Optional[Request] = None) -> dic
         },
         "notes": getattr(crop, "notes", None),
         "image_url": _media_url_abs(request, main) if main else None,
-        "images": images,                           # <-- now populated
+        "images": images,
+        "created_at": crop.created_at,  # <-- add this
     }
+

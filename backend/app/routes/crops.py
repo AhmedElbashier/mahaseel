@@ -1,11 +1,11 @@
 # app/api/routes/crops.py
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Form, File, UploadFile, Body
 from enum import Enum
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload, joinedload
 from typing import List, Optional
 
-from app.schemas.crop import CropCreate, CropOut
+from app.schemas.crop import CropCreate, CropOut, LocationIn
 from app.db.session import get_db
 from app.models import Crop
 from app.api.deps import require_roles
@@ -23,14 +23,52 @@ class CropSort(str, Enum):
 
 @router.post("", response_model=CropOut, status_code=201)
 def create_crop(
-    data: CropCreate,
+        request: Request,                      # <— add this
+    # 1) Try JSON first (Content-Type: application/json)
+    data: Optional[CropCreate] = Body(default=None),
+
+    # 2) Or accept multipart/form-data fallbacks (when images are sent)
+    name: Optional[str] = Form(default=None),
+    type: Optional[str] = Form(default=None),
+    qty: Optional[float] = Form(default=None),
+    price: Optional[float] = Form(default=None),
+    unit: Optional[str] = Form(default=None),
+    notes: Optional[str] = Form(default=None),
+
+    # location.* comes flattened from the client
+    location_lat: Optional[float] = Form(default=None, alias="location.lat"),
+    location_lng: Optional[float] = Form(default=None, alias="location.lng"),
+    location_state: Optional[str] = Form(default=None, alias="location.state"),
+    location_locality: Optional[str] = Form(default=None, alias="location.locality"),
+    location_address: Optional[str] = Form(default=None, alias="location.address"),
+
+    images: List[UploadFile] = File(default_factory=list),
+
     db: Session = Depends(get_db),
     user = Depends(require_roles("seller", "admin")),
 ):
+    # If JSON wasn't provided, rebuild CropCreate from Form fields
+    if data is None:
+        required = [name, qty, price, unit, location_lat, location_lng]
+        if any(v is None for v in required):
+            raise HTTPException(422, "Missing required form fields for crop creation")
+
+        data = CropCreate(
+            name=name,
+            type=type,
+            qty=qty,
+            price=price,
+            unit=unit,
+            notes=notes,
+            location=LocationIn(
+                lat=location_lat, lng=location_lng,
+                state=location_state, locality=location_locality, address=location_address
+            ),
+        )
+
     if not data.location:
         raise HTTPException(400, "location is required")
 
-    # Normalize state casing at write-time
     norm_state = data.location.state.strip().title() if (data.location.state) else None
 
     crop = Crop(
@@ -50,8 +88,101 @@ def create_crop(
     db.add(crop)
     db.commit()
     db.refresh(crop)
-    db.refresh(crop, attribute_names=["media"])  # eager-load media
-    return serialize_crop(crop)
+    db.refresh(crop, attribute_names=["media"])
+
+    # TODO: save `images` to Media if you want to handle uploads here
+
+    return serialize_crop(crop, request)   # <— pass request
+
+
+# app/api/routes/crops.py (add below the JSON create)
+from fastapi import UploadFile, File, Form
+from pathlib import Path
+from app.models.media import Media  # assumes you have this model
+
+UPLOAD_DIR = Path("static/uploads")
+
+@router.post("/upload", response_model=CropOut, status_code=201)
+async def create_crop_upload(
+    request: Request,
+    name: str = Form(...),
+    type: Optional[str] = Form(None),
+    qty: float = Form(...),
+    price: float = Form(...),
+    unit: str = Form(...),
+    notes: Optional[str] = Form(None),
+    location_lat: float = Form(..., alias="location.lat"),
+    location_lng: float = Form(..., alias="location.lng"),
+    location_state: Optional[str] = Form(None, alias="location.state"),
+    location_locality: Optional[str] = Form(None, alias="location.locality"),
+    location_address: Optional[str] = Form(None, alias="location.address"),
+    images: list[UploadFile] = File(default_factory=list),
+    db: Session = Depends(get_db),
+    user = Depends(require_roles("seller", "admin")),
+):
+    if not location_lat or not location_lng:
+        raise HTTPException(400, "location is required")
+
+    # normalize state same as JSON path
+    norm_state = location_state.strip().title() if location_state else None
+
+    crop = Crop(
+        name=name,
+        type=type,
+        qty=float(qty),
+        price=float(price),
+        unit=unit,
+        seller_id=user.id,
+        lat=location_lat,
+        lng=location_lng,
+        state=norm_state,
+        locality=location_locality,
+        address=location_address,
+        notes=notes,
+    )
+    db.add(crop)
+    db.flush()  # get crop.id before saving media
+
+    # ensure upload dir exists
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    # simple limits (defense-in-depth)
+    if len(images) > 5:
+        raise HTTPException(400, "You can upload up to 5 images")
+
+    saved_any = False
+    for idx, f in enumerate(images):
+        if not f.filename:
+            continue
+        # very light content-type guard
+        if not (f.content_type or "").startswith(("image/",)):
+            continue
+
+        # give it a deterministic unique path
+        suffix = Path(f.filename).suffix.lower() or ".jpg"
+        file_name = f"{crop.id}_{idx}{suffix}"
+        disk_path = UPLOAD_DIR / file_name
+
+        # stream to disk
+        with disk_path.open("wb") as out:
+            while chunk := await f.read(1024 * 1024):
+                out.write(chunk)
+
+        # persist Media row (store relative path; serializer builds URLs)
+        m = Media(
+            crop_id=crop.id,
+            path=f"uploads/{file_name}",
+            is_main=(idx == 0),
+        )
+        db.add(m)
+        saved_any = True
+
+    db.commit()
+    db.refresh(crop)
+    db.refresh(crop, attribute_names=["media", "seller"])
+
+    return serialize_crop(crop, request)
+
 
 @router.get("", response_model=dict)
 @limiter.limit("60/minute")

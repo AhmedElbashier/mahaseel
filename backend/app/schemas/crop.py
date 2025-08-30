@@ -22,14 +22,18 @@ class CropCreate(BaseModel):
 class CropOut(BaseModel):
     id: int
     name: str
-    type: Optional[str]
-    qty: float          # expose float to clients
+    type: Optional[str] = None
+    qty: float
     price: float
     unit: str
     seller_id: int
+    seller_name: Optional[str] = None   # NEW
+    seller_phone: Optional[str] = None  # NEW
     location: LocationIn
     notes: Optional[str] = None
-    image_url: Optional[str] = Field(default=None, description="URL of the main image")
+    image_url: Optional[str] = None
+    images: list[str] = []              # NEW
     created_at: datetime
+
     class Config:
         from_attributes = True

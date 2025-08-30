@@ -218,40 +218,46 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen>
     try {
       HapticFeedback.mediumImpact();
 
-      // Use repo directly (matches your CropsRepo API)
       final repo = ref.read(cropsRepoProvider);
-      await repo.create(
+      // ⬇️ capture the created crop so we can navigate to it or return it
+      final crop = await repo.create(
         name: _nameController.text,
-        type: _selectedType, // repo expects "type"
-        qty: double.parse(_quantityController.text), // repo expects "qty"
+        type: _selectedType,
+        qty: double.parse(_quantityController.text),
         price: double.parse(_priceController.text),
         unit: _selectedUnit,
-        location: _selectedLocation!, // LocationData
+        location: _selectedLocation!,
         notes: _descriptionController.text.isEmpty
             ? null
-            : _descriptionController.text, // repo expects "notes"
+            : _descriptionController.text,
         images: _selectedImages.map((x) => File(x.path)).toList(),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إضافة المحصول بنجاح! 🎉'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        context.pop();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إضافة المحصول بنجاح! 🎉'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // ⬇️ SAFE navigation: pop if possible, otherwise go to a concrete route
+      final router = GoRouter.of(context);
+      if (router.canPop()) {
+        router.pop(crop); // return the new crop to the previous screen (if any)
+      } else {
+        router.go('/crops/${crop.id}'); // or: router.go('/crops');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في إضافة المحصول: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في إضافة المحصول: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -312,7 +318,14 @@ class _AddCropScreenState extends ConsumerState<AddCropScreen>
             ),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              onPressed: () => context.pop(),
+              onPressed: () {
+                final router = GoRouter.of(context);
+                if (router.canPop()) {
+                  router.pop();
+                } else {
+                  router.go('/home'); // or '/crops'
+                }
+              },
             ),
           ),
 

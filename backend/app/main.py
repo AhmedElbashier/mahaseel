@@ -15,6 +15,7 @@ from app.core.cors import add_cors
 from app.core.errors import add_error_handlers
 from app.core.ratelimit import add_rate_limiting
 from app.observability import RequestLogMiddleware
+from app.middleware.max_body import MaxBodySizeMiddleware
 
 
 from app.core.config import settings
@@ -67,6 +68,10 @@ def healthz():
 add_cors(app)
 add_rate_limiting(app)
 add_error_handlers(app)
+
+# middleware
+app.add_middleware(MaxBodySizeMiddleware, max_body_size=10 * 1024 * 1024)
+
 
 # routes
 app.include_router(auth_router)
