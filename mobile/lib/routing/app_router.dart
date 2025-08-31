@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mahaseel/features/favorites/screens/favourites_home_screen.dart';
+import 'package:mahaseel/features/menu/screens/menu_screen.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/login_phone_screen.dart';
 import '../features/auth/screens/signup_phone_screen.dart';
@@ -189,7 +190,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/menu',
-            builder: (context, state) => const NotificationsScreen(),
+            builder: (context, state) => const MenuScreen(),
           ),
         ],
       ),
