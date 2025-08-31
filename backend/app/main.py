@@ -57,23 +57,52 @@ app.add_middleware(
     max_age=600,
 )
 
-# Security headers middleware
+# Security headers middleware (strict by default, relaxed on /docs and /redoc)
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
-        # Basic hardening headers
+
+        # Basic hardening
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Permissions-Policy", "geolocation=()")
-        # Minimal CSP: adjust if serving dynamic scripts/styles
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'none'; frame-ancestors 'none'; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https:; script-src 'self'; style-src 'self' 'unsafe-inline'",
+
+        path = request.url.path
+
+        # Strict CSP everywhere
+        strict_csp = (
+            "default-src 'none'; "
+            "frame-ancestors 'none'; "
+            "img-src 'self' data: https:; "
+            "media-src 'self' https:; "
+            "connect-src 'self' https:; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'"
         )
-        # HSTS only when not in dev and over HTTPS/behind TLS terminator
+
+        # Relax CSP only for docs pages so Swagger/Redoc can load from their CDNs
+        docs_csp = (
+            "default-src 'none'; "
+            "frame-ancestors 'none'; "
+            "img-src 'self' data: https:; "
+            "media-src 'self' https:; "
+            "connect-src 'self' https:; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.redoc.ly; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "font-src 'self' data: https://cdn.jsdelivr.net; "
+            "worker-src 'self' blob:"
+        )
+
+        csp = docs_csp if path in ("/docs", "/redoc") else strict_csp
+        response.headers["Content-Security-Policy"] = csp  # overwrite if present
+
         if not settings.is_dev:
-            response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=63072000; includeSubDomains; preload"
+            )
+
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
