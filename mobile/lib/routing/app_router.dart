@@ -1,8 +1,10 @@
 // lib/routing/app_router.dart
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mahaseel/features/favorites/screens/favourites_home_screen.dart';
 
+import 'package:mahaseel/features/favorites/screens/favourites_home_screen.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/login_phone_screen.dart';
 import '../features/auth/screens/signup_phone_screen.dart';
@@ -19,8 +21,20 @@ import '../features/crops/screens/add_crop_screen.dart';
 import '../features/location/map_picker_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
 
+/// 🔔 Bridge Riverpod -> GoRouter.refreshListenable
+/// Whenever AuthState changes, we notify listeners so GoRouter re-evaluates `redirect`.
+final routerRefreshListenableProvider = Provider<Listenable>((ref) {
+  final notifier = ValueNotifier<int>(0);
+  ref.onDispose(notifier.dispose);
+
+  ref.listen<AuthState>(authControllerProvider, (_, __) {
+    notifier.value++; // any change triggers a refresh
+  }, fireImmediately: false);
+
+  return notifier;
+});
+
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authControllerProvider);
   bool requiresAuth(String loc) {
     return loc.startsWith('/home') ||
         loc.startsWith('/chats') ||
@@ -30,72 +44,81 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         loc.startsWith('/crops');
   }
 
+  bool isPublicAuthFlow(String loc) {
+    return loc == '/' ||
+        loc.startsWith('/login') ||
+        loc.startsWith('/signup') ||
+        loc.startsWith('/otp') ||
+        loc.startsWith('/oauth');
+  }
+
   return GoRouter(
     initialLocation: '/',
+    // ✅ make GoRouter refresh when AuthState changes
+    refreshListenable: ref.watch(routerRefreshListenableProvider),
+
     redirect: (context, state) {
+      final auth = ref.read(authControllerProvider);
       final loc = state.matchedLocation;
-      final loggingIn = loc.startsWith('/login') || loc.startsWith('/signup');
-      if (!auth.isAuthenticated && requiresAuth(loc)) {
-        return '/login';
+
+      // 1) Wait until auth bootstrap finishes (prevents early kicks)
+      if (!auth.bootstrapped) {
+        return loc == '/' ? null : '/';
       }
-      if (auth.isAuthenticated && loggingIn) {
-        return '/home';
-      }
+
+      final isAuthed = auth.isAuthenticated;
+      final needsAuth = requiresAuth(loc);
+      final isPublic = isPublicAuthFlow(loc);
+
+      // 2) Not authenticated → allow public auth flow, block protected
+      if (!isAuthed && needsAuth) return '/login';
+
+      // 3) Authenticated → keep out of auth flow (login/signup/otp/oauth/splash)
+      if (isAuthed && isPublic) return '/home';
+
       return null;
     },
+
     routes: [
-      // Splash Screen
+      // Splash
       GoRoute(
         path: '/',
         builder: (context, state) => const SplashScreen(),
       ),
 
-      // // Welcome Screen
-      // GoRoute(
-      //   path: '/welcome',
-      //   builder: (context, state) => const WelcomeScreen(),
-      // ),
-
-      // Auth Routes
+      // Auth
       GoRoute(
         path: '/login',
         builder: (context, state) => const login_views.LoginOptionsScreen(),
       ),
-
       GoRoute(
         path: '/login/phone',
         builder: (context, state) => const LoginPhoneScreen(),
       ),
-
       GoRoute(
         path: '/signup',
         builder: (context, state) => const signup_views.SignupOptionsScreen(),
       ),
-
       GoRoute(
         path: '/signup/phone',
         builder: (context, state) => const SignupPhoneScreen(),
       ),
-
       GoRoute(
         path: '/oauth/oauth-details',
-        // ✅ null-safe extra + fallback to Riverpod auth state
         builder: (context, state) {
           return Consumer(
             builder: (context, ref, _) {
-              // 1) Try to read from state.extra if present
               String provider = 'unknown';
               Map<String, dynamic> oauthData = const {};
 
               final extra = state.extra;
               if (extra is Map<String, dynamic>) {
-                provider   = (extra['provider'] as String?) ?? 'unknown';
-                oauthData  = (extra['oauthData'] as Map<String, dynamic>?) ?? const {};
+                provider = (extra['provider'] as String?) ?? 'unknown';
+                oauthData = (extra['oauthData'] as Map<String, dynamic>?) ?? const {};
               } else {
-                // 2) Fallback: read pending data from the auth controller
                 final pending = ref.read(authControllerProvider).pendingOAuthData;
                 if (pending != null) {
-                  provider  = (pending['provider'] as String?)?.toLowerCase() ?? 'unknown';
+                  provider = (pending['provider'] as String?)?.toLowerCase() ?? 'unknown';
                   oauthData = pending;
                 }
               }
@@ -120,16 +143,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Main App Shell
       ShellRoute(
         builder: (context, state, child) {
-          // Use state.uri (or state.location depending on your go_router version)
-          final loc = state.uri.toString(); // if older go_router: final loc = state.location;
+          final loc = state.uri.toString();
 
           int indexFromLocation(String loc) {
             if (loc.startsWith('/chats')) return 1;
             if (loc.startsWith('/add-crop')) return 2;
             if (loc.startsWith('/favorites')) return 3;
             if (loc.startsWith('/menu')) return 4;
-            // default/home
-            return 0;
+            return 0; // home
           }
 
           final current = indexFromLocation(loc);
@@ -137,12 +158,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return HomeShell(
             child: child,
             hideTopBar: true,
-            currentIndex: current,                         // ✅ dynamic highlight
-            onTabSelected: (index) {                       // ✅ navigate within the shell
+            currentIndex: current,
+            onTabSelected: (index) {
               switch (index) {
                 case 0: context.go('/home'); break;
                 case 1: context.go('/chats'); break;
-                case 2: context.go('/add-crop'); break;    // keep this consistent
+                case 2: context.go('/add-crop'); break;
                 case 3: context.go('/favorites'); break;
                 case 4: context.go('/menu'); break;
               }
@@ -158,13 +179,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/chats',
             builder: (context, state) => const ChatListScreen(),
           ),
-
-          // 🔧 FIX TYPO: make it /add-crop (NOT /add-corp)
           GoRoute(
             path: '/add-crop',
             builder: (context, state) => const AddCropScreen(),
           ),
-
           GoRoute(
             path: '/favorites',
             builder: (context, state) => const FavouritesHomeScreen(),
@@ -176,7 +194,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Crop Routes
+      // Details & misc
       GoRoute(
         path: '/crops/:id',
         name: 'cropDetails',
@@ -185,11 +203,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return CropDetailsScreen(id: id);
         },
       ),
-      // Map Picker
       GoRoute(
         path: '/map-picker',
         builder: (context, state) => const MapPickerScreen(),
       ),
     ],
+    debugLogDiagnostics: true,
   );
 });

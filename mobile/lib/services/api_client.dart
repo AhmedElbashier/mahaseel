@@ -4,7 +4,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'logging_interceptor.dart';
-import '../core/http/fastapi_errors.dart';
 
 class ApiClient {
   static final ApiClient _i = ApiClient._();
@@ -22,27 +21,37 @@ class ApiClient {
   bool _refreshing = false;
 
   /// Call once in main() AFTER dotenv.load().
+  // lib/services/api_client.dart
   void init() {
     if (_initialized) return;
     _initialized = true;
 
-    final baseUrl =
-        dotenv.env['API_BASE_URL'] ?? 'https://staging.mahaseel.com';
+    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'https://staging.mahaseel.com';
     if (kReleaseMode && !baseUrl.startsWith('https://')) {
       throw StateError('API_BASE_URL must use HTTPS in release builds');
     }
 
+    // NEW: read optional path prefix ('' locally, '/api/v1' on envs that need it)
+    final pathPrefix = (dotenv.env['API_PATH_PREFIX'] ?? '').trim();
+
+    // Normalize slashes once
+    String _joinBase(String a, String b) {
+      final left = a.endsWith('/') ? a.substring(0, a.length - 1) : a;
+      final right = b.isEmpty
+          ? ''
+          : (b.startsWith('/') ? b : '/$b');
+      return '$left$right';
+    }
+
     dio = Dio(BaseOptions(
-      baseUrl: '$baseUrl/api/v1',
+      baseUrl: _joinBase(baseUrl, pathPrefix),  // ← no more hardcoded /api/v1
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 20),
       responseType: ResponseType.json,
     ));
 
-    // 1) Add X-Request-ID for backend correlation
+    // 1) X-Request-ID, 2) Auth header, 3) Logging, 4) Auto-refresh ... (unchanged)
     dio.interceptors.add(RequestIdInterceptor());
-
-    // 2) Auth header
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await _storage.read(key: 'jwt');
@@ -54,24 +63,16 @@ class ApiClient {
         handler.next(options);
       },
     ));
-
-    // 3) PII-safe logging (debug/profile only)
-    dio.interceptors.add(PiiSafeLogInterceptor(
-      sampleRate: 1.0, // you can set 0.2 in profile if too chatty
-    ));
-
-    // 4) Auto-refresh access token once on 401/403, then retry
+    dio.interceptors.add(PiiSafeLogInterceptor(sampleRate: 1.0));
     dio.interceptors.add(InterceptorsWrapper(
       onError: (error, handler) async {
         final status = error.response?.statusCode;
         final req = error.requestOptions;
         final triedRefresh = req.extra['__tried_refresh__'] == true;
         if ((status == 401 || status == 403) && !triedRefresh) {
-          // mark to avoid loops
           req.extra['__tried_refresh__'] = true;
           final ok = await _tryRefresh();
           if (ok) {
-            // update Authorization and retry original
             final newToken = await _storage.read(key: 'jwt');
             if (newToken != null) {
               req.headers['Authorization'] = 'Bearer $newToken';
@@ -79,23 +80,16 @@ class ApiClient {
             try {
               final clone = await dio.fetch(req);
               return handler.resolve(clone);
-            } catch (e) {
-              // fall through to unauthorized handling
-            }
+            } catch (_) {}
           }
-          // refresh failed → clear and propagate unauthorized
           await clearAllTokens();
-          if (onUnauthorized != null) {
-            await onUnauthorized!();
-          }
+          if (onUnauthorized != null) await onUnauthorized!();
         }
         handler.next(error);
       },
     ));
-
-    // ⚠️ Remove the default Dio LogInterceptor; ours is safer.
-    // dio.interceptors.add(LogInterceptor(...));  // ← delete this
   }
+
 
   Future<void> saveToken(String token) async =>
       _storage.write(key: 'jwt', value: token);
