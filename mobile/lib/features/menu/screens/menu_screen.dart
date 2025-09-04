@@ -82,7 +82,7 @@ class MenuScreen extends ConsumerWidget {
                       title: const Text('تسجيل الخروج', style: TextStyle(color: Colors.red)),
                       onTap: () {
                         // wire to your auth logout + navigate to /login
-                        context.push('/login');
+                        context.push('/');
                       },
                     ),
                     const SizedBox(height: 8),
