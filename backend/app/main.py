@@ -34,6 +34,12 @@ from app.routes.auth_social import router as auth_social_router
 from app.routes.favorites import router as favorites_routes
 from app.routes.chat import router as chat_routes
 from app.routes.ws import router as ws_routes
+from app.routes.wallet import router as wallet_routes
+from app.routes.saved_searches import router as saved_search_routes
+from app.routes.my_ads import router as my_ads_routes
+from app.routes.sales import router as sales_routes
+from app.routes.security import router as security_routes
+from app.routes.cms import router as cms_routes
 
 from app.api.deps import get_current_user
 
@@ -147,17 +153,32 @@ app.include_router(auth_social_router)
 app.include_router(favorites_routes)
 app.include_router(chat_routes)
 app.include_router(ws_routes)
-api_router = APIRouter(prefix="/api/v1")
-api_router.include_router(auth_router)
-api_router.include_router(auth_me_router)
-api_router.include_router(admin_routes)
-api_router.include_router(crops_router)
-api_router.include_router(media_router)
-api_router.include_router(contact_router)
-api_router.include_router(rating_routes)
-api_router.include_router(order_routes)
-api_router.include_router(auth_social_router)
-api_router.include_router(favorites_routes)
-api_router.include_router(chat_routes)
-api_router.include_router(ws_routes)
-app.include_router(api_router)
+
+app.include_router(wallet_routes)
+app.include_router(saved_search_routes)
+app.include_router(my_ads_routes)
+app.include_router(sales_routes)
+app.include_router(security_routes)
+app.include_router(cms_routes)
+
+
+# api_router = APIRouter(prefix="/api/v1")
+# api_router.include_router(auth_router)
+# api_router.include_router(auth_me_router)
+# api_router.include_router(admin_routes)
+# api_router.include_router(crops_router)
+# api_router.include_router(media_router)
+# api_router.include_router(contact_router)
+# api_router.include_router(rating_routes)
+# api_router.include_router(order_routes)
+# api_router.include_router(auth_social_router)
+# api_router.include_router(favorites_routes)
+# api_router.include_router(chat_routes)
+# api_router.include_router(ws_routes)
+# api_router.include_router(wallet_routes)
+# api_router.include_router(saved_search_routes)
+# api_router.include_router(my_ads_routes)
+# api_router.include_router(sales_routes)
+# api_router.include_router(security_routes)
+# api_router.include_router(cms_routes)
+# app.include_router(api_router)

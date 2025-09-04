@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from app.models.order import Order, OrderStatus
+from app.models.crop import Crop
 from app.schemas.order import OrderCreate
+
 
 def create_order(db: Session, order_in: OrderCreate, buyer_id: int):
     order = Order(
@@ -15,16 +17,21 @@ def create_order(db: Session, order_in: OrderCreate, buyer_id: int):
     db.refresh(order)
     return order
 
+
 def list_orders_for_seller(db: Session, seller_id: int):
+    # filter by the actual FK on Crop
     return (
         db.query(Order)
-        .join(Order.crop)
-        .filter(Order.crop.has(seller_id=seller_id))
+        .join(Crop, Crop.id == Order.crop_id)
+        .filter(Crop.seller_id == seller_id)
+        .order_by(Order.created_at.desc())
         .all()
     )
+
 
 def update_status(db: Session, order: Order, status: OrderStatus):
     order.status = status
     db.commit()
     db.refresh(order)
     return order
+

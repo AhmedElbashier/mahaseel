@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -766,7 +767,7 @@ ${c.notes?.isNotEmpty == true ? '\n📝 ملاحظات: ${c.notes}' : ''}
                   if (c.sellerPhone?.trim().isNotEmpty ?? false)
                     FilledButton.icon(
                       onPressed: isOwner ? null : () => _openWhatsApp(c), // also disable if owner
-                      icon: const Icon(Icons.chat),
+                      icon: const Icon(FontAwesomeIcons.whatsapp, color: Colors.green),
                       label: const Text('واتساب'),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF25D366),

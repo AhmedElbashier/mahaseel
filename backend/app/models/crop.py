@@ -41,7 +41,7 @@ class Crop(Base):
     )
 
     # Relationships
-    seller = relationship("User", lazy="joined")
+    seller = relationship("User", back_populates="crops", lazy="joined")
     media: Mapped[list["Media"]] = relationship(
         back_populates="crop", cascade="all, delete-orphan"
     )

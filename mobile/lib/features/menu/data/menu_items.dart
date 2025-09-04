@@ -1,4 +1,3 @@
-// lib/features/menu/data/menu_items.dart
 import 'package:flutter/material.dart';
 import '../models/menu_item.dart';
 
@@ -9,7 +8,7 @@ List<MenuSection> buildMenuSections({
   required void Function() onLanguageTap,
 }) {
   return [
-    // Profile / settings — unchanged
+    // Profile / settings — KEEP (unchanged)
     MenuSection([
       const MenuItemModel(icon: Icons.person_outline, title: 'الملف الشخصي', route: '/profile'),
       const MenuItemModel(icon: Icons.manage_accounts_outlined, title: 'إعدادات الحساب', route: '/account'),
@@ -17,37 +16,27 @@ List<MenuSection> buildMenuSections({
       const MenuItemModel(icon: Icons.lock_outline, title: 'الأمان', route: '/security'),
     ]),
 
-    // 🔄 Marketplace section — UPDATED for Mahaseel
+    // NEW marketplace section
     MenuSection(const [
-      MenuItemModel(
-        icon: Icons.receipt_long_outlined,
-        title: 'طلباتي',                   // Buyer orders
-        route: '/orders',
-      ),
-      MenuItemModel(
-        icon: Icons.storefront_outlined,
-        title: 'مبيعاتي',                  // Seller orders / sales
-        route: '/sales',
-      ),
-      MenuItemModel(
-        icon: Icons.account_balance_wallet_outlined,
-        title: 'المحفظة وطرق الدفع',        // Wallet, payouts, cards
-        route: '/wallet',
-      ),
+      MenuItemModel(icon: Icons.grid_view_outlined,  title: 'إعلاناتي', route: '/my-ads'),
+      MenuItemModel(icon: Icons.search_outlined,     title: 'عمليات بحثي', route: '/my-searches'),
+      MenuItemModel(icon: Icons.receipt_long_outlined, title: 'طلباتي', route: '/orders'),
+      MenuItemModel(icon: Icons.storefront_outlined, title: 'مبيعاتي', route: '/sales'),
+      MenuItemModel(icon: Icons.account_balance_wallet_outlined, title: 'المحفظة وطرق الدفع', route: '/wallet'),
     ]),
 
-    // City / Language — unchanged (right values injected by screen)
+    // City / Language — KEEP
     MenuSection([
       MenuItemModel(icon: Icons.apartment_outlined, title: 'المدينة', onTap: onCityTap),
       MenuItemModel(icon: Icons.translate_outlined, title: 'اللغة', onTap: onLanguageTap),
     ]),
 
-    // Info & support — unchanged
+    // Info & support — KEEP
     MenuSection(const [
       MenuItemModel(icon: Icons.article_outlined, title: 'المدونة', route: '/blogs'),
       MenuItemModel(icon: Icons.support_agent_outlined, title: 'الدعم', route: '/support'),
       MenuItemModel(icon: Icons.call_outlined, title: 'اتصل بنا', route: '/call-us'),
-      MenuItemModel(icon: Icons.gavel_outlined, title: 'اللوائح القانونية', route: '/legal'),
+      MenuItemModel(icon: Icons.gavel_outlined, title: 'اللوائح القانونية', route: '/laws-terms'),
       MenuItemModel(icon: Icons.campaign_outlined, title: 'الإعلانات', route: '/advertising'),
     ]),
   ];

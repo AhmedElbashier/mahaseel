@@ -22,6 +22,21 @@ import '../features/crops/screens/add_crop_screen.dart';
 import '../features/location/map_picker_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
 
+import 'package:mahaseel/features/ads/screens/my_ads_screen.dart';
+import 'package:mahaseel/features/searches/screens/my_searches_screen.dart';
+import 'package:mahaseel/features/security/screens/security_screen.dart';
+import 'package:mahaseel/features/orders/screens/orders_screen.dart';
+import 'package:mahaseel/features/sales/screens/sales_screen.dart';
+import 'package:mahaseel/features/wallet/screens/wallet_screen.dart';
+import 'package:mahaseel/features/locality/screens/city_picker_screen.dart';
+import 'package:mahaseel/features/locality/screens/language_picker_screen.dart';
+import 'package:mahaseel/features/info/screens/blog_list_screen.dart';
+import 'package:mahaseel/features/info/screens/support_screen.dart';
+import 'package:mahaseel/features/info/screens/call_us_screen.dart';
+import 'package:mahaseel/features/info/screens/laws_terms_screen.dart';
+import 'package:mahaseel/features/info/screens/advertising_screen.dart';
+
+
 /// 🔔 Bridge Riverpod -> GoRouter.refreshListenable
 /// Whenever AuthState changes, we notify listeners so GoRouter re-evaluates `redirect`.
 final routerRefreshListenableProvider = Provider<Listenable>((ref) {
@@ -196,6 +211,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // Details & misc
+      GoRoute(path: '/my-ads',     builder: (_, __) => const MyAdsScreen()),
+      GoRoute(path: '/my-searches',builder: (_, __) => const MySearchesScreen()),
+      GoRoute(path: '/security',   builder: (_, __) => const SecurityScreen()),
+      GoRoute(path: '/orders',     builder: (_, __) => const OrdersScreen()),
+      GoRoute(path: '/sales',      builder: (_, __) => const SalesScreen()),
+      GoRoute(path: '/wallet',     builder: (_, __) => const WalletScreen()),
+      GoRoute(path: '/city',       builder: (_, __) => const CityPickerScreen()),
+      GoRoute(path: '/language',   builder: (_, __) => const LanguagePickerScreen()),
+      GoRoute(path: '/blogs',      builder: (_, __) => const BlogListScreen()),
+      GoRoute(path: '/support',    builder: (_, __) => const SupportScreen()),
+      GoRoute(path: '/call-us',    builder: (_, __) => const CallUsScreen()),
+      GoRoute(path: '/laws-terms', builder: (_, __) => const LawsTermsScreen()),
+      GoRoute(path: '/advertising',builder: (_, __) => const AdvertisingScreen()),
       GoRoute(
         path: '/crops/:id',
         name: 'cropDetails',
