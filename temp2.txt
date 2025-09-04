@@ -1,0 +1,50 @@
+        minPrice: result.min,
+        maxPrice: result.max,
+        sort: _filters.sort,
+      );
+    }
+  }
+
+// Quick toggle: newest -> priceAsc -> priceDesc -> newest...
+  Future<void> _quickSortToggle() async {
+    // define the cycle order
+    const order = [SortOption.newest, SortOption.priceAsc, SortOption.priceDesc];
+    final currentIndex = order.indexOf(_filters.sort);
+    final next = order[(currentIndex + 1) % order.length];
+
+    setState(() => _filters = _filters.copyWith(sort: next));
+
+    await ref.read(cropsControllerProvider.notifier).applyFilters(
+      type: _filters.type,
+      stateFilter: _filters.state,
+      minPrice: _filters.minPrice,
+      maxPrice: _filters.maxPrice,
+      sort: next,
+    );
+
+    // (optional) toast
+    if (!mounted) return;
+    final msg = {
+      SortOption.newest: 'تم الترتيب: الأحدث',
+      SortOption.priceAsc: 'تم الترتيب: السعر من الأقل للأعلى',
+      SortOption.priceDesc: 'تم الترتيب: السعر من الأعلى للأقل',
+    }[next]!;
+    // localized override
+    // TODO: localize
+    // final t = AppLocalizations.of(context);
+    final msg2 = {
+      // TODO: localize
+      // SortOption.newest: (t?.sortNewest ?? 'Sorted: newest'),
+      // SortOption.priceAsc: (t?.sortPriceAsc ?? 'Sorted: price low to high'),
+      // SortOption.priceDesc: (t?.sortPriceDesc ?? 'Sorted: price high to low'),
+    }[next]!;
+    showToast(context, msg2);
+  }
+
+  Future<void> _setSortNewest() async {
+    if (_filters.sort == SortOption.newest) return;
+    setState(() => _filters = _filters.copyWith(sort: SortOption.newest));
+    await ref.read(cropsControllerProvider.notifier).applyFilters(
+      type: _filters.type,
+      stateFilter: _filters.state,
+      minPrice: _filters.minPrice,

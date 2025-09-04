@@ -1,9 +1,10 @@
 
 import 'package:flutter/material.dart';
+import 'brand.dart';
 
 class AppTheme {
-  static const _primarySeed = Color(0xFF2E7D32); // Agricultural green
-  static const _fontFamily = 'Cairo';
+  static const _primarySeed = BrandColors.primary; // Agricultural green
+  static const _fontFamily = Brand.fontFamily;
 
   // Light theme
   static ThemeData get light {
@@ -26,6 +27,10 @@ class AppTheme {
   }
 
   static ThemeData _buildTheme(ColorScheme colorScheme, Brightness brightness) {
+    final selectedOnSurface = brightness == Brightness.light
+        ? colorScheme.onSurface
+        : colorScheme.onSurface;
+
     return ThemeData(
       colorScheme: colorScheme,
       brightness: brightness,
@@ -37,7 +42,7 @@ class AppTheme {
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 4,
-        backgroundColor: colorScheme.surface.withOpacity(0.95),
+        backgroundColor: colorScheme.surface.withOpacity(0.98),
         surfaceTintColor: colorScheme.surfaceTint,
         titleTextStyle: TextStyle(
           fontFamily: _fontFamily,
@@ -51,7 +56,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(BrandRadii.md),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       ),
@@ -62,13 +67,15 @@ class AppTheme {
           elevation: 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(BrandRadii.md),
           ),
           textStyle: const TextStyle(
             fontFamily: _fontFamily,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
         ),
       ),
 
@@ -77,12 +84,25 @@ class AppTheme {
         style: TextButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(BrandRadii.sm),
           ),
           textStyle: const TextStyle(
             fontFamily: _fontFamily,
             fontWeight: FontWeight.w600,
           ),
+          foregroundColor: colorScheme.primary,
+        ),
+      ),
+
+      // Outlined button theme
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(BrandRadii.md),
+          ),
+          side: BorderSide(color: colorScheme.primary, width: 1.2),
+          foregroundColor: colorScheme.primary,
         ),
       ),
 
@@ -91,24 +111,24 @@ class AppTheme {
         filled: true,
         fillColor: colorScheme.surfaceVariant.withOpacity(0.5),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(BrandRadii.md),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(BrandRadii.md),
           borderSide: BorderSide(
             color: colorScheme.outline.withOpacity(0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(BrandRadii.md),
           borderSide: BorderSide(
             color: colorScheme.primary,
             width: 2,
           ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(BrandRadii.md),
           borderSide: BorderSide(
             color: colorScheme.error,
           ),
@@ -127,6 +147,24 @@ class AppTheme {
         ),
       ),
 
+      // Chip theme for filter/search chips
+      chipTheme: ChipThemeData(
+        labelStyle: TextStyle(
+          fontFamily: _fontFamily,
+          color: selectedOnSurface,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        selectedColor: colorScheme.primary.withOpacity(0.14),
+        secondarySelectedColor: colorScheme.primary.withOpacity(0.22),
+        backgroundColor: colorScheme.surfaceVariant.withOpacity(0.6),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(BrandRadii.sm),
+          side: BorderSide(color: colorScheme.outline.withOpacity(0.2)),
+        ),
+        deleteIconColor: colorScheme.onSurfaceVariant,
+      ),
+
       // Floating action button theme
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         elevation: 6,
@@ -136,19 +174,31 @@ class AppTheme {
         ),
       ),
 
-      // Navigation bar theme
+      /// NavigationBar (Material 3) — single definition
       navigationBarTheme: NavigationBarThemeData(
         elevation: 0,
         backgroundColor: colorScheme.surface,
+        surfaceTintColor: colorScheme.surfaceTint,
         indicatorColor: colorScheme.primaryContainer,
-        labelTextStyle: MaterialStateProperty.all(
-          TextStyle(
+        height: 64,
+        labelTextStyle: MaterialStateProperty.resolveWith((states) {
+          final isSelected = states.contains(MaterialState.selected);
+          return TextStyle(
             fontFamily: _fontFamily,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+          );
+        }),
+        iconTheme: MaterialStateProperty.resolveWith((states) {
+          final isSelected = states.contains(MaterialState.selected);
+          return IconThemeData(
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+          );
+        }),
       ),
+
 
       // Bottom sheet theme
       bottomSheetTheme: BottomSheetThemeData(
@@ -156,7 +206,7 @@ class AppTheme {
         surfaceTintColor: colorScheme.surfaceTint,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            top: Radius.circular(24),
+            top: Radius.circular(BrandRadii.xl),
           ),
         ),
         elevation: 8,
@@ -167,7 +217,7 @@ class AppTheme {
         backgroundColor: colorScheme.surface,
         surfaceTintColor: colorScheme.surfaceTint,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(BrandRadii.lg),
         ),
         elevation: 8,
       ),
@@ -181,11 +231,31 @@ class AppTheme {
           fontWeight: FontWeight.w500,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(BrandRadii.sm),
         ),
         behavior: SnackBarBehavior.floating,
         elevation: 6,
       ),
+
+      // Bottom navigation (Material 2)
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: colorScheme.primary,
+        unselectedItemColor: colorScheme.onSurfaceVariant,
+        backgroundColor: colorScheme.surface,
+        elevation: 8,
+        selectedLabelStyle: TextStyle(
+          fontFamily: _fontFamily,
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontFamily: _fontFamily,
+          fontWeight: FontWeight.w600,
+        ),
+        showUnselectedLabels: true,
+      ),
+
+
 
       // Text theme with Arabic font support
       textTheme: _buildTextTheme(colorScheme, brightness),

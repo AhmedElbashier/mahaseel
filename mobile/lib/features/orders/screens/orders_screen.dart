@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 enum OrderStatus { all, pending, confirmed, shipped, delivered, canceled }
 extension OrderStatusX on OrderStatus {
   String get label => switch (this) {
-    OrderStatus.all => 'الكل',
-    OrderStatus.pending => 'قيد المعالجة',
-    OrderStatus.confirmed => 'مؤكد',
-    OrderStatus.shipped => 'تم الشحن',
-    OrderStatus.delivered => 'تم التسليم',
-    OrderStatus.canceled => 'أُلغي',
-  };
+        OrderStatus.all => 'All',
+        OrderStatus.pending => 'Pending',
+        OrderStatus.confirmed => 'Confirmed',
+        OrderStatus.shipped => 'Shipped',
+        OrderStatus.delivered => 'Delivered',
+        OrderStatus.canceled => 'Canceled',
+      };
 }
 
 class OrdersScreen extends StatefulWidget {
@@ -27,7 +27,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(title: const Text('طلباتي')),
+        appBar: AppBar(title: const Text('Orders')),
         body: Column(
           children: [
             _StatusChips(
@@ -39,10 +39,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
               child: orders.isEmpty
                   ? const _Empty()
                   : ListView.separated(
-                itemBuilder: (_, i) => _OrderTile(order: orders[i]),
-                separatorBuilder: (_, __) => const Divider(height: 0),
-                itemCount: orders.length,
-              ),
+                      itemBuilder: (_, i) => _OrderTile(order: orders[i]),
+                      separatorBuilder: (_, __) => const Divider(height: 0),
+                      itemCount: orders.length,
+                    ),
             ),
           ],
         ),
@@ -61,16 +61,16 @@ class _StatusChips extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: OrderStatus.values.map((s) {
-          final sel = s == current;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: ChoiceChip(
-              label: Text(s.label), selected: sel,
-              onSelected: (_) => onChanged(s),
-            ),
-          );
-        }).toList(),
+        children: OrderStatus.values
+            .map((s) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ChoiceChip(
+                    label: Text(s.label),
+                    selected: s == current,
+                    onSelected: (_) => onChanged(s),
+                  ),
+                ))
+            .toList(),
       ),
     );
   }
@@ -87,12 +87,14 @@ class _OrderTile extends StatelessWidget {
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          width: 56, height: 56, color: Colors.grey.shade200,
+          width: 56,
+          height: 56,
+          color: Colors.grey.shade200,
           child: const Icon(Icons.image, color: Colors.black26),
         ),
       ),
-      title: const Text('طلب #12345'),
-      subtitle: const Text('3 عناصر • 1200 ج.س'),
+      title: const Text('Order #12345'),
+      subtitle: const Text('3 items • 1200 SDG'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {/* TODO: go to details */},
     );
@@ -106,14 +108,22 @@ class _Empty extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [
-          Icon(Icons.receipt_long_outlined, size: 64, color: Colors.black26),
-          SizedBox(height: 12),
-          Text('لا توجد طلبات بعد', style: TextStyle(fontWeight: FontWeight.w700)),
-          SizedBox(height: 6),
-          Text('عند طلب أي منتج سيظهر هنا تتبع الحالة', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
-        ]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.receipt_long_outlined, size: 64, color: Colors.black26),
+            SizedBox(height: 12),
+            Text('No orders yet', style: TextStyle(fontWeight: FontWeight.w700)),
+            SizedBox(height: 6),
+            Text(
+              'Place an order and it will appear here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.black54),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+

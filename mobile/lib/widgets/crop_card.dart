@@ -1,6 +1,7 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../core/theme/brand.dart';
 
 import '../features/crops/models/crop.dart';
 
@@ -95,10 +96,10 @@ class _CropCardState extends State<CropCard>
             margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             child: Material(
               elevation: _elevationAnimation.value,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(BrandRadii.md),
               shadowColor: colorScheme.primary.withOpacity(0.2),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(BrandRadii.md),
                 child: GestureDetector(
                   onTapDown: _handleTapDown,
                   onTapUp: _handleTapUp,
@@ -109,7 +110,7 @@ class _CropCardState extends State<CropCard>
                     onExit: (_) => setState(() => _isHovered = false),
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(BrandRadii.md),
                         border: Border.all(
                           color: _isHovered
                               ? colorScheme.primary.withOpacity(0.3)
@@ -277,16 +278,16 @@ class _CropCardState extends State<CropCard>
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    gradient: LinearGradient(
+                                    gradient: const LinearGradient(
                                       colors: [
-                                        Colors.red.shade400,
-                                        Colors.red.shade600,
+                                        BrandColors.primaryLight,
+                                        BrandColors.primaryDark,
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(16),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.red.withOpacity(0.3),
+                                        color: BrandColors.primary.withOpacity(0.25),
                                         blurRadius: 6,
                                         offset: const Offset(0, 2),
                                       ),

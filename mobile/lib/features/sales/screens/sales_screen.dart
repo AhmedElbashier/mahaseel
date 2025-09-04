@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 enum SalesStatus { all, neww, confirmed, shipped, delivered, canceled }
 extension SalesStatusX on SalesStatus {
   String get label => switch (this) {
-    SalesStatus.all => 'الكل',
-    SalesStatus.neww => 'جديد',
-    SalesStatus.confirmed => 'مؤكد',
-    SalesStatus.shipped => 'تم الشحن',
-    SalesStatus.delivered => 'تم التسليم',
-    SalesStatus.canceled => 'أُلغي',
-  };
+        SalesStatus.all => 'All',
+        SalesStatus.neww => 'New',
+        SalesStatus.confirmed => 'Confirmed',
+        SalesStatus.shipped => 'Shipped',
+        SalesStatus.delivered => 'Delivered',
+        SalesStatus.canceled => 'Canceled',
+      };
 }
 
 class SalesScreen extends StatefulWidget {
@@ -27,7 +27,7 @@ class _SalesScreenState extends State<SalesScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(title: const Text('مبيعاتي')),
+        appBar: AppBar(title: const Text('Sales')),
         body: Column(
           children: [
             _StatusChips(current: filter, onChanged: (s) => setState(() => filter = s)),
@@ -36,10 +36,10 @@ class _SalesScreenState extends State<SalesScreen> {
               child: sales.isEmpty
                   ? const _Empty()
                   : ListView.separated(
-                itemBuilder: (_, i) => _SaleRow(order: sales[i]),
-                separatorBuilder: (_, __) => const Divider(height: 0),
-                itemCount: sales.length,
-              ),
+                      itemBuilder: (_, i) => _SaleRow(order: sales[i]),
+                      separatorBuilder: (_, __) => const Divider(height: 0),
+                      itemCount: sales.length,
+                    ),
             ),
           ],
         ),
@@ -58,13 +58,12 @@ class _StatusChips extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: SalesStatus.values.map((s) {
-          final sel = s == current;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: ChoiceChip(label: Text(s.label), selected: sel, onSelected: (_) => onChanged(s)),
-          );
-        }).toList(),
+        children: SalesStatus.values
+            .map((s) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ChoiceChip(label: Text(s.label), selected: s == current, onSelected: (_) => onChanged(s)),
+                ))
+            .toList(),
       ),
     );
   }
@@ -81,10 +80,10 @@ class _SaleRow extends StatelessWidget {
         backgroundColor: Colors.green.shade50,
         child: const Icon(Icons.shopping_bag_outlined, color: Colors.green),
       ),
-      title: const Text('طلب من أحمد'),
-      subtitle: const Text('منتجان • 800 ج.س'),
+      title: const Text('Sale to John Doe'),
+      subtitle: const Text('3 items • 800 SDG'),
       trailing: Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: const [
-        _Badge(text: 'جديد', color: Colors.orange),
+        _Badge(text: 'New', color: Colors.orange),
         Icon(Icons.chevron_right),
       ]),
       onTap: () {/* TODO: details + status actions */},
@@ -116,11 +115,12 @@ class _Empty extends StatelessWidget {
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: const [
           Icon(Icons.storefront_outlined, size: 64, color: Colors.black26),
           SizedBox(height: 12),
-          Text('لا توجد مبيعات حالياً', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text('No sales yet', style: TextStyle(fontWeight: FontWeight.w700)),
           SizedBox(height: 6),
-          Text('عند استقبال طلبات جديدة ستظهر هنا', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
+          Text('Your sales will show up here.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
         ]),
       ),
     );
   }
 }
+

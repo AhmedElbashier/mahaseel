@@ -1,6 +1,7 @@
 // lib/features/favourite/screens/favourites_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../widgets/brand_chip.dart';
 import '../state/favourites_controller.dart';
 import '../widgets/manage_lists_bottom_sheet.dart';
 import 'favourites_list_screen.dart';
@@ -50,22 +51,12 @@ class _FavouritesHomeScreenState extends ConsumerState<FavouritesHomeScreen> {
               itemBuilder: (_, i) {
                 final l = st.lists[i];
                 final selected = l.id == st.selectedListId;
-                return ChoiceChip(
-                  selected: selected,
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(l.name),
-                      if (l.count > 0) ...[
-                        const SizedBox(width: 6),
-                        CircleAvatar(
-                          radius: 10,
-                          child: Text('${l.count}', style: const TextStyle(fontSize: 12)),
-                        ),
-                      ]
-                    ],
+                return GestureDetector(
+                  onTap: () => ctrl.selectList(l.id),
+                  child: FilterPill(
+                    label: l.count > 0 ? '${l.name} (${l.count})' : l.name,
+                    selected: selected,
                   ),
-                  onSelected: (_) => ctrl.selectList(l.id),
                 );
               },
               separatorBuilder: (_, __) => const SizedBox(width: 8),

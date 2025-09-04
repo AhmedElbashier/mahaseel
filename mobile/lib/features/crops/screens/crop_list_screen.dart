@@ -13,9 +13,10 @@ import '../data/crops_repo.dart' show SortOption;
 import '../data/crop_filters.dart';
 
 import '../../favorites/state/favourites_controller.dart';
+import '../../../widgets/brand_chip.dart';
+import '../../../widgets/search_bar_small.dart';
 import '../../../core/ui/toast.dart';
-// TODO: localize
-// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../core/ui/empty_state.dart';
 import '../../favorites/widgets/add_to_list_sheet.dart';
 import '../../auth/state/auth_controller.dart'; // adjust path if different
@@ -248,13 +249,11 @@ class _CropListScreenState extends ConsumerState<CropListScreen>
       SortOption.priceDesc: 'تم الترتيب: السعر من الأعلى للأقل',
     }[next]!;
     // localized override
-    // TODO: localize
-    // final t = AppLocalizations.of(context);
+    final t = AppLocalizations.of(context);
     final msg2 = {
-      // TODO: localize
-      // SortOption.newest: (t?.sortNewest ?? 'Sorted: newest'),
-      // SortOption.priceAsc: (t?.sortPriceAsc ?? 'Sorted: price low to high'),
-      // SortOption.priceDesc: (t?.sortPriceDesc ?? 'Sorted: price high to low'),
+      SortOption.newest: 'Sorted: newest',
+      SortOption.priceAsc: (t?.sortPriceAsc ?? 'Sorted: price low to high'),
+      SortOption.priceDesc: (t?.sortPriceDesc ?? 'Sorted: price high to low'),
     }[next]!;
     showToast(context, msg2);
   }
@@ -436,12 +435,14 @@ class _CropListScreenState extends ConsumerState<CropListScreen>
                   toolbarHeight: 56,
                   collapsedHeight: 56,
                   expandedHeight: 56,
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
+                  backgroundColor: theme.colorScheme.surface.withOpacity(0.98),
+                  foregroundColor: theme.colorScheme.onSurface,
                   elevation: 1,
-                  surfaceTintColor: Colors.white,
-                  systemOverlayStyle: SystemUiOverlayStyle.dark,
-                  title: _SearchBarSmall(
+                  surfaceTintColor: theme.colorScheme.surfaceTint,
+                  systemOverlayStyle: theme.brightness == Brightness.dark
+                      ? SystemUiOverlayStyle.light
+                      : SystemUiOverlayStyle.dark,
+                  title: SearchBarSmall(
                     initialText: ref.watch(cropsControllerProvider).query ?? '',
                     onSubmitted: (q) => ref.read(cropsControllerProvider.notifier).search(q.trim()),
                     onTapFilters: _openFilters,
@@ -690,23 +691,7 @@ class _ChipButton extends StatelessWidget {
   const _ChipButton({required this.icon, required this.label, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(999),
-          color: Theme.of(context).colorScheme.surface,
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 18),
-          const SizedBox(width: 6),
-          Text(label, overflow: TextOverflow.ellipsis),
-        ]),
-      ),
-    );
+    return FilterPill(icon: icon, label: label, onTap: onTap);
   }
 }
 
@@ -794,7 +779,7 @@ class _SearchBarSmallState extends State<_SearchBarSmall> {
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 filled: true,
-                fillColor: const Color(0xFFF3F4F6),
+                fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
@@ -828,9 +813,15 @@ class _FloatingBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(24),
-              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
