@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'brand.dart';
 
@@ -116,22 +115,15 @@ class AppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BrandRadii.md),
-          borderSide: BorderSide(
-            color: colorScheme.outline.withOpacity(0.3),
-          ),
+          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BrandRadii.md),
-          borderSide: BorderSide(
-            color: colorScheme.primary,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BrandRadii.md),
-          borderSide: BorderSide(
-            color: colorScheme.error,
-          ),
+          borderSide: BorderSide(color: colorScheme.error),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -169,9 +161,7 @@ class AppTheme {
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         elevation: 6,
         highlightElevation: 12,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
 
       /// NavigationBar (Material 3) — single definition
@@ -198,7 +188,6 @@ class AppTheme {
           );
         }),
       ),
-
 
       // Bottom sheet theme
       bottomSheetTheme: BottomSheetThemeData(
@@ -255,14 +244,15 @@ class AppTheme {
         showUnselectedLabels: true,
       ),
 
-
-
       // Text theme with Arabic font support
       textTheme: _buildTextTheme(colorScheme, brightness),
     );
   }
 
-  static TextTheme _buildTextTheme(ColorScheme colorScheme, Brightness brightness) {
+  static TextTheme _buildTextTheme(
+    ColorScheme colorScheme,
+    Brightness brightness,
+  ) {
     final baseTextTheme = brightness == Brightness.light
         ? Typography.blackMountainView
         : Typography.whiteMountainView;
