@@ -230,7 +230,7 @@ ${c.notes?.isNotEmpty == true ? '\nNotes: ${c.notes}' : ''}
                 Expanded(
                   child: OutlineButtonBrand(
                     onPressed: () => _openWhatsApp(c),
-                    icon: Icons.whatsapp,
+                    icon: Icons.chat,
                     label: 'WhatsApp',
                     expanded: true,
                   ),
